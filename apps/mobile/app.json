@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "GestaCondomínio",
+    "slug": "gestacondominio",
+    "scheme": "gestacondominio",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F5F2",
+    "ios": {
+      "bundleIdentifier": "app.gestacondominio",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "A câmera é usada só para cadastrar seu rosto no controle de acesso do condomínio, com seu consentimento."
+      }
+    },
+    "android": {
+      "package": "app.gestacondominio",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

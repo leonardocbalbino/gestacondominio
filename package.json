@@ -1,0 +1,22 @@
+{
+  "name": "gestacondominio",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:rls": "pnpm --filter @gc/db test",
+    "test:e2e": "pnpm --filter @gc/web test:e2e",
+    "db:start": "supabase start --workdir packages/db",
+    "db:reset": "supabase db reset --workdir packages/db",
+    "db:test:up": "docker compose -f packages/db/test/docker-compose.yml up -d --wait",
+    "db:test:down": "docker compose -f packages/db/test/docker-compose.yml down -v"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "~5.9.3"
+  }
+}

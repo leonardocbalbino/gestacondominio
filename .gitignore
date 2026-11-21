@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.turbo/
+dist/
+.expo/
+web-build/
+coverage/
+playwright-report/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+packages/db/supabase/.branches/
+packages/db/supabase/.temp/
+.DS_Store

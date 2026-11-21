@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["55339:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Regras de negócio (Vitest)
+        run: pnpm --filter @gc/core test
+      - name: RLS / LGPD no banco (Vitest + Postgres)
+        run: pnpm --filter @gc/db test
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Build do painel web
+        run: pnpm --filter @gc/web build
+      - name: E2E (Playwright, modo demonstração)
+        run: |
+          pnpm --filter @gc/web exec playwright install --with-deps chromium
+          pnpm --filter @gc/web test:e2e

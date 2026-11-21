@@ -1,0 +1,41 @@
+/* Tema Tailwind v4 gerado a partir de tokens.ts — mantenha os dois em sincronia. */
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-heading: "Space Grotesk", "Inter", sans-serif;
+
+  --color-primary: #0F766E;
+  --color-primary-hover: #115E59;
+  --color-primary-dark: #0F3B37;
+  --color-primary-soft: #E6F2F0;
+  --color-primary-soft-border: #CFE6E1;
+  --color-primary-tint: #F3FAF8;
+  --color-accent-ring: #5EEAD4;
+  --color-ink: #14181F;
+  --color-ink-2: #3A4049;
+  --color-muted: #5B626C;
+  --color-muted-strong: #6B727C;
+  --color-bg: #F4F5F2;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #EEF0EC;
+  --color-segment: #E7E9E4;
+  --color-line: #E2E4DF;
+  --color-line-input: #D5D8D2;
+  --color-line-dashed: #C9CEC6;
+  --color-camera: #1B2420;
+  --color-success: #14603A;
+  --color-success-bg: #E2F3EA;
+  --color-info: #1D4A85;
+  --color-info-bg: #E4EDFA;
+  --color-warning: #8A3B07;
+  --color-warning-bg: #FCEFD9;
+  --color-danger: #9A1B1B;
+  --color-danger-bg: #FBE6E4;
+  --color-alert: #C2410C;
+  --color-neutral-bg: #EDEFEA;
+
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+}

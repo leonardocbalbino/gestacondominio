@@ -1,0 +1,5 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+overrides:
+  "@types/react": "19.3.0"

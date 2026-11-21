@@ -1,0 +1,15 @@
+# Postgres efêmero para os testes de RLS (porta 55339). Uso: pnpm db:test:up
+services:
+  postgres-teste:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55339:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
