@@ -3,18 +3,21 @@
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { DURACOES_SUPORTE_HORAS, novoCondominioSchema } from '@gc/core';
+import { mensagemDoBanco } from '@gc/db';
+import { banco, MODO_DEMO } from '@/lib/db';
 import { demo } from '@/lib/demo-store';
+import { enviarEmail } from '@/lib/email';
 import { exigirPerfil } from '@/lib/sessao';
-import { MODO_DEMO, supabaseServidor } from '@/lib/supabase/server';
 
 export interface EstadoNovoCondominio {
   erro?: string;
   conviteLink?: string;
+  emailEnviado?: boolean;
   nome?: string;
 }
 
 export async function criarCondominio(_: EstadoNovoCondominio, form: FormData): Promise<EstadoNovoCondominio> {
-  await exigirPerfil('dono');
+  const s = await exigirPerfil('dono');
   const v = novoCondominioSchema.safeParse({
     nome: form.get('nome'),
     cidade: form.get('cidade'),
@@ -25,7 +28,7 @@ export async function criarCondominio(_: EstadoNovoCondominio, form: FormData): 
     cnpj: form.get('cnpj') || undefined,
   });
   if (!v.success) return { erro: v.error.issues[0]?.message ?? 'Dados inválidos' };
-  const origem = (await headers()).get('origin') ?? '';
+  const origem = process.env.APP_URL ?? (await headers()).get('origin') ?? '';
 
   if (MODO_DEMO) {
     const id = crypto.randomUUID();
@@ -37,20 +40,31 @@ export async function criarCondominio(_: EstadoNovoCondominio, form: FormData): 
     return { nome: v.data.nome, conviteLink: `${origem}/convite/${crypto.randomUUID().replace(/-/g, '')}` };
   }
 
-  const sb = await supabaseServidor();
-  const { data, error } = await sb.rpc('criar_condominio', {
-    p_nome: v.data.nome, p_cidade: v.data.cidade, p_uf: v.data.uf, p_plano: v.data.planoId,
-    p_sindico_email: v.data.sindicoEmail, p_sindico_nome: v.data.sindicoNome, p_cnpj: v.data.cnpj ?? null,
-  });
-  if (error) return { erro: 'Não foi possível criar o condomínio' };
-  const r = data as { convite_token: string };
-  // O e-mail de convite é disparado pela Edge Function "enviar-convite" (fila); aqui o link é mostrado uma única vez.
+  let token: string;
+  try {
+    const [r] = await banco().comoUsuario(s.userId, (q) =>
+      q<{ r: { convite_token: string } }>('select public.criar_condominio($1, $2, $3, $4, $5, $6, $7) as r', [
+        v.data.nome, v.data.cidade, v.data.uf, v.data.planoId, v.data.sindicoEmail, v.data.sindicoNome, v.data.cnpj ?? null,
+      ]),
+    );
+    token = r!.r.convite_token;
+  } catch (e) {
+    return { erro: mensagemDoBanco(e, 'Não foi possível criar o condomínio') };
+  }
+  const link = `${origem}/convite/${token}`;
+  const enviado = await enviarEmail(
+    v.data.sindicoEmail,
+    `Convite: síndico(a) do ${v.data.nome}`,
+    `Olá, ${v.data.sindicoNome}!\n\nVocê foi convidado(a) para administrar o ${v.data.nome} no GestaCondomínio.\n` +
+      `Crie seu acesso por este link (válido por 7 dias, uso único):\n${link}\n`,
+  ).catch(() => false);
   revalidatePath('/dono');
-  return { nome: v.data.nome, conviteLink: `${origem}/convite/${r.convite_token}` };
+  // Sem SMTP configurado, o link é mostrado uma única vez para o dono repassar.
+  return { nome: v.data.nome, emailEnviado: enviado, conviteLink: enviado ? undefined : link };
 }
 
 export async function solicitarSuporte(form: FormData) {
-  await exigirPerfil('dono');
+  const s = await exigirPerfil('dono');
   const condominioId = String(form.get('condominioId'));
   const motivo = String(form.get('motivo') ?? '').trim();
   const horas = Number(form.get('horas'));
@@ -63,8 +77,7 @@ export async function solicitarSuporte(form: FormData) {
       status: 'solicitado', expiraEm: null, criadoEm: new Date(),
     });
   } else {
-    const sb = await supabaseServidor();
-    await sb.rpc('solicitar_suporte', { p_condominio: condominioId, p_motivo: motivo, p_horas: horas });
+    await banco().comoUsuario(s.userId, (q) => q('select public.solicitar_suporte($1, $2, $3)', [condominioId, motivo, horas]));
   }
   revalidatePath('/dono');
 }

@@ -1,13 +1,16 @@
+import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { formatCheck, locacaoAluguelSchema, locacaoTemporadaSchema, ORIGENS_TEMPORADA } from '@gc/core';
+import { formatCheck, locacaoAluguelSchema, locacaoTemporadaSchema, ORIGENS_TEMPORADA, parseCheckBR } from '@gc/core';
 import { demoLocatarioTemporada } from '@gc/core/demo';
 import { colors } from '@gc/ui';
 import { Moldura } from '@/components/icones';
 import { Botao, Cabecalho, Campo, Rodape, Seletor, T } from '@/components/ui';
-import { enviarLocacao } from '@/lib/dados';
+import { MODO_DEMO } from '@/lib/api';
+import { enviarContrato, enviarLocacao, type NovaLocacao } from '@/lib/dados';
+import { tratarErro } from '@/lib/useDados';
 
 type Tipo = 'temporada' | 'aluguel';
 
@@ -17,11 +20,11 @@ export default function TelaLocatario() {
   const [erros, setErros] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
-  // Temporada (pré-preenchido com o exemplo do design no modo demonstração)
-  const [responsavel, setResponsavel] = useState(demoLocatarioTemporada.responsavel);
-  const [celularT, setCelularT] = useState(demoLocatarioTemporada.celular);
-  const [checkin] = useState(demoLocatarioTemporada.checkin);
-  const [checkout] = useState(demoLocatarioTemporada.checkout);
+  // Temporada — no modo demonstração vem pré-preenchida com o exemplo do design.
+  const [responsavel, setResponsavel] = useState(MODO_DEMO ? demoLocatarioTemporada.responsavel : '');
+  const [celularT, setCelularT] = useState(MODO_DEMO ? demoLocatarioTemporada.celular : '');
+  const [checkin, setCheckin] = useState(MODO_DEMO ? formatCheck(demoLocatarioTemporada.checkin) : '');
+  const [checkout, setCheckout] = useState(MODO_DEMO ? formatCheck(demoLocatarioTemporada.checkout) : '');
   const [hospedes, setHospedes] = useState('2');
   const [origem, setOrigem] = useState<string>('Airbnb');
 
@@ -32,29 +35,50 @@ export default function TelaLocatario() {
   const [fim, setFim] = useState('');
   const [imobiliaria, setImobiliaria] = useState('');
   const [moradores, setMoradores] = useState('1');
+  const [contrato, setContrato] = useState<{ uri: string; name: string; file?: File } | null>(null);
 
   const temporada = tipo === 'temporada';
 
+  async function escolherContrato() {
+    const r = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+    if (r.canceled || !r.assets[0]) return;
+    const a = r.assets[0];
+    if ((a.size ?? 0) > 10 * 1024 * 1024) return Alert.alert('Arquivo grande demais', 'O contrato deve ter até 10 MB.');
+    setContrato({ uri: a.uri, name: a.name, file: (a as { file?: File }).file });
+  }
+
   async function enviar() {
+    const ci = parseCheckBR(checkin);
+    const co = parseCheckBR(checkout);
     const v = temporada
-      ? locacaoTemporadaSchema.safeParse({ tipo, responsavel, celular: celularT, checkin, checkout, hospedes: Number(hospedes), origem })
+      ? locacaoTemporadaSchema.safeParse({ tipo, responsavel, celular: celularT, checkin: ci ?? 'inválida', checkout: co ?? 'inválida', hospedes: Number(hospedes), origem })
       : locacaoAluguelSchema.safeParse({ tipo, nome, celular: celularA, inicio, fim, imobiliaria: imobiliaria || undefined, moradores: Number(moradores) });
     if (!v.success) {
-      setErros(Object.fromEntries(v.error.issues.map((i) => [String(i.path[0]), i.message])));
+      const e = Object.fromEntries(v.error.issues.map((i) => [String(i.path[0]), i.message]));
+      if (temporada && !ci) e.checkin = 'Use o formato 22/11 · 14h';
+      if (temporada && !co) e.checkout = 'Use o formato 25/11 · 11h';
+      setErros(e);
       return;
     }
     setErros({});
     setEnviando(true);
     try {
-      const r = await enviarLocacao(v.data as Parameters<typeof enviarLocacao>[0]);
+      let corpo: NovaLocacao;
+      if (v.data.tipo === 'temporada') {
+        corpo = { ...v.data, celular: celularT };
+      } else {
+        const contratoPath = contrato ? await enviarContrato(contrato) : undefined;
+        corpo = { ...v.data, celular: celularA, contratoPath };
+      }
+      const r = await enviarLocacao(corpo);
       if (temporada && r.links[0]) {
-        // O link é pessoal e de uso único: o morador compartilha direto com o hóspede.
+        // Link pessoal e de uso único: o morador compartilha direto com o hóspede.
         await Share.share({ message: `Cadastre seu acesso facial ao condomínio: ${r.links[0]}` }).catch(() => {});
       }
       Alert.alert('Enviado ao síndico', temporada ? 'Os hóspedes recebem o link para cadastrar a facial.' : 'Você será avisado quando o síndico aprovar.');
       router.back();
     } catch (e) {
-      Alert.alert('Erro', (e as Error).message);
+      tratarErro(e);
     } finally {
       setEnviando(false);
     }
@@ -89,14 +113,34 @@ export default function TelaLocatario() {
               <Campo rotulo="Celular (para o link facial)" value={celularT} onChangeText={setCelularT} keyboardType="phone-pad" erro={erros.celular} />
               <View className="flex-row gap-2.5">
                 <View className="flex-1">
-                  <Campo rotulo="Check-in" value={formatCheck(checkin)} editable={false} />
+                  <Campo
+                    rotulo="Check-in"
+                    value={checkin}
+                    onChangeText={setCheckin}
+                    onBlur={() => {
+                      const d = parseCheckBR(checkin);
+                      if (d) setCheckin(formatCheck(d));
+                    }}
+                    placeholder="22/11 · 14h"
+                    erro={erros.checkin}
+                  />
                 </View>
                 <View className="flex-1">
-                  <Campo rotulo="Check-out" value={formatCheck(checkout)} editable={false} erro={erros.checkout} />
+                  <Campo
+                    rotulo="Check-out"
+                    value={checkout}
+                    onChangeText={setCheckout}
+                    onBlur={() => {
+                      const d = parseCheckBR(checkout);
+                      if (d) setCheckout(formatCheck(d));
+                    }}
+                    placeholder="25/11 · 11h"
+                    erro={erros.checkout}
+                  />
                 </View>
               </View>
               <View className="flex-row gap-2.5">
-                <Seletor rotulo="Hóspedes" valor={hospedes} onChange={setHospedes} opcoes={['1', '2', '3', '4'].map((n) => ({ valor: n, rotulo: n }))} />
+                <Seletor rotulo="Hóspedes" valor={hospedes} onChange={setHospedes} opcoes={['1', '2', '3', '4', '5', '6'].map((n) => ({ valor: n, rotulo: n }))} />
                 <Seletor rotulo="Origem" valor={origem} onChange={setOrigem} opcoes={ORIGENS_TEMPORADA.map((o) => ({ valor: o, rotulo: o }))} />
               </View>
               <View className="flex-row gap-3 rounded-xl border border-primary-soft-border bg-primary-tint p-3">
@@ -132,13 +176,16 @@ export default function TelaLocatario() {
               />
               <Pressable
                 accessibilityRole="button"
-                onPress={() => Alert.alert('Contrato', 'O PDF é enviado ao bucket privado e só o síndico e sua unidade podem abrir.')}
+                accessibilityLabel={contrato ? `Contrato anexado: ${contrato.name}. Toque para trocar` : 'Anexar contrato de locação'}
+                onPress={escolherContrato}
                 className="min-h-12 flex-row items-center gap-3 rounded-xl border-[1.5px] border-dashed border-line-dashed bg-surface px-3.5 py-3"
               >
                 <View className="h-9 w-9 items-center justify-center rounded-[9px] bg-danger-bg">
                   <Text className="font-inter-bold text-[11px] text-danger">PDF</Text>
                 </View>
-                <T className="font-inter-semibold">Anexar contrato de locação</T>
+                <T className="flex-1 font-inter-semibold" numberOfLines={1}>
+                  {contrato ? contrato.name : 'Anexar contrato de locação'}
+                </T>
               </Pressable>
             </>
           )}

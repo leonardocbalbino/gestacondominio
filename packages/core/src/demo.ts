@@ -127,6 +127,38 @@ export const demoLinkFacial = {
   expiraEm: d('2026-11-23T14:22:00-03:00'),
 };
 
+export const demoAreas = [
+  { id: '80000000-0000-4000-8000-000000000001', nome: 'Salão de festas' },
+  { id: '80000000-0000-4000-8000-000000000002', nome: 'Churrasqueira' },
+];
+
+export const demoAssembleias = [
+  {
+    id: '90000000-0000-4000-8000-000000000001',
+    titulo: 'AGE · Pintura da fachada',
+    dataHora: d('2026-12-04T19:30:00-03:00'),
+    status: 'convocada' as 'convocada' | 'em_votacao' | 'encerrada',
+    pautas: [
+      {
+        id: '91000000-0000-4000-8000-000000000001',
+        titulo: 'Aprovar a pintura da fachada',
+        votacaoAberta: true,
+        meuVoto: null as 'sim' | 'nao' | 'abstencao' | null,
+        resultado: { sim: 11, nao: 4, abstencao: 2 },
+      },
+    ],
+  },
+];
+
+export const demoEncomendas = [
+  { id: 'enc1', descricao: 'Caixa média · Correios', recebidaEm: d('2026-11-20T15:40:00-03:00'), retiradaEm: null as Date | null },
+  { id: 'enc2', descricao: 'Envelope · Mercado Livre', recebidaEm: d('2026-11-14T10:05:00-03:00'), retiradaEm: d('2026-11-14T19:12:00-03:00') as Date | null },
+];
+
+export const demoOcorrencias = [
+  { id: 'oc1', titulo: 'Lâmpada queimada no hall do 3º andar', status: 'em_andamento' as 'aberta' | 'em_andamento' | 'resolvida', criadaEm: d('2026-11-18T08:30:00-03:00') },
+];
+
 /** Visão do dono do sistema: somente agregados — nunca nomes, CPFs ou unidades. */
 export interface MetricaDemo {
   condominio_id: string;

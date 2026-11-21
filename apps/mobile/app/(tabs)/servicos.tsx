@@ -6,10 +6,10 @@ import { Card, T, Titulo } from '@/components/ui';
 const ITENS: { titulo: string; detalhe: string; href?: Href }[] = [
   { titulo: 'Ceder minha vaga', detalhe: 'Empréstimo ou aluguel para outra unidade', href: '/ceder-vaga' },
   { titulo: 'Cadastrar locatário', detalhe: 'Temporada (Airbnb, Booking) ou aluguel', href: '/locatario' },
-  { titulo: 'Reservar espaço', detalhe: 'Salão de festas, churrasqueira' },
-  { titulo: 'Encomendas', detalhe: 'Avisos da portaria' },
-  { titulo: 'Ocorrências', detalhe: 'Registrar um problema' },
-  { titulo: 'Assembleias', detalhe: 'Pautas e votação por unidade' },
+  { titulo: 'Reservar espaço', detalhe: 'Salão de festas, churrasqueira', href: '/reservar' },
+  { titulo: 'Encomendas', detalhe: 'Avisos da portaria', href: '/encomendas' },
+  { titulo: 'Ocorrências', detalhe: 'Registrar um problema', href: '/ocorrencias' },
+  { titulo: 'Assembleias', detalhe: 'Pautas e votação por unidade', href: '/assembleias' },
 ];
 
 export default function TelaServicos() {

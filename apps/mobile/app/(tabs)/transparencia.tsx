@@ -1,17 +1,15 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BADGE_ETAPA, formatDiaMes, resumoCotacoes } from '@gc/core';
 import type { DemandaDemo } from '@gc/core/demo';
 import { Badge, Card, T, Titulo } from '@/components/ui';
 import { listarDemandas } from '@/lib/dados';
+import { useDados } from '@/lib/useDados';
 
 export default function TelaTransparencia() {
-  const [lista, setLista] = useState<DemandaDemo[]>([]);
-  useEffect(() => {
-    listarDemandas().then(setLista);
-  }, []);
+  const { dados } = useDados<DemandaDemo[]>(listarDemandas);
+  const lista = dados ?? [];
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-bg">

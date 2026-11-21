@@ -27,7 +27,7 @@ const STATUS: Record<string, { texto: string; tom: 'ok' | 'warn' | 'neu' | 'bad'
 
 export default async function Page() {
   const sessao = await exigirPerfil('dono');
-  const [metricas, listaPlanos, suporte] = await Promise.all([metricasDono(), planos(), pedidosSuporte()]);
+  const [metricas, listaPlanos, suporte] = await Promise.all([metricasDono(sessao.userId), planos(sessao.userId), pedidosSuporte(sessao.userId)]);
   const ativos = metricas.filter((m) => m.status === 'ativo').length;
 
   return (

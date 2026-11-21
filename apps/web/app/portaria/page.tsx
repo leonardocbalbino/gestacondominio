@@ -7,7 +7,7 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { Input, Select } from '@/components/ui/field';
 import { dadosPortaria } from '@/lib/dados';
 import { exigirPerfil } from '@/lib/sessao';
-import { registrarAcesso } from './actions';
+import { registrarAcesso, registrarEncomenda } from './actions';
 
 export const metadata: Metadata = { title: 'Portaria' };
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ const TIPO: Record<string, string> = { entrada: 'Entrada', saida: 'Saída', visi
 
 export default async function Page() {
   const sessao = await exigirPerfil('portaria', 'sindico');
-  const d = await dadosPortaria(sessao.condominioId!);
+  const d = await dadosPortaria(sessao.userId, sessao.condominioId!);
 
   return (
     <Painel sessao={sessao} titulo="Portaria">
@@ -33,6 +33,11 @@ export default async function Page() {
           <Input name="unidade" aria-label="Unidade" placeholder="Unidade (ex.: 304-A)" required className="w-48" />
           <Input name="obs" aria-label="Observação" placeholder="Observação (opcional)" className="min-w-48 flex-1" />
           <Button>Registrar</Button>
+        </form>
+        <form action={registrarEncomenda} className="mt-3 flex flex-wrap gap-2 border-t border-surface-2 pt-3">
+          <Input name="unidade" aria-label="Unidade da encomenda" placeholder="Unidade" required className="w-48" />
+          <Input name="descricao" aria-label="Descrição da encomenda" placeholder="Encomenda (ex.: caixa média · Correios)" required className="min-w-48 flex-1" />
+          <Button variant="outline">Avisar encomenda</Button>
         </form>
       </Card>
 

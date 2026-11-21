@@ -72,6 +72,27 @@ export function formatFaixaHoras(inicio: Date, fim: Date): string {
   return `${Number(partes(inicio).hora)}h às ${Number(partes(fim).hora)}h`;
 }
 
+/**
+ * Lê data+hora digitadas no formato das telas: "22/11 · 14h", "22/11 14h", "22/11/2026 14:30".
+ * Sem ano, assume a próxima ocorrência a partir de `ref` (check-in é sempre futuro próximo).
+ */
+export function parseCheckBR(texto: string, ref = new Date()): Date | null {
+  const m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s*(?:·|às|,|-)?\s*(\d{1,2})\s*(?:h|:)?\s*(\d{2})?\s*h?$/i.exec(texto.trim());
+  if (!m) return null;
+  const [, d, mo, y, h, mi] = m;
+  const hh = Number(h);
+  const mm = Number(mi ?? '0');
+  if (hh > 23 || mm > 59) return null;
+  const pad = (n: string | number) => String(n).padStart(2, '0');
+  const montar = (ano: number) => parseDataBR(`${pad(d!)}/${pad(mo!)}/${ano}`, `${pad(hh)}:${pad(mm)}`);
+  if (y) return montar(Number(y));
+  const anoRef = Number(formatData(ref).slice(6));
+  const data = montar(anoRef);
+  if (!data) return null;
+  // Mais de 1 dia no passado → é do ano seguinte (ex.: digitar 05/01 em dezembro).
+  return data.getTime() < ref.getTime() - 86_400_000 ? montar(anoRef + 1) : data;
+}
+
 /** Converte "dd/mm/aaaa" (horário de Brasília, -03:00) em Date. Retorna null se inválida. */
 export function parseDataBR(texto: string, hora = '00:00'): Date | null {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto.trim());

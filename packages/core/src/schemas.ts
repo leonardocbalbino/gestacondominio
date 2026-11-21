@@ -81,6 +81,42 @@ export const locacaoAluguelSchema = z
 export const locacaoSchema = z.union([locacaoTemporadaSchema, locacaoAluguelSchema]);
 export type LocacaoInput = z.input<typeof locacaoSchema>;
 
+const hora = z.string().trim().regex(/^([01]?\d|2[0-3])(:[0-5]\d|h)?$/, 'Hora inválida (ex.: 18h ou 18:30)');
+
+function horaParaHHMM(h: string): string {
+  const m = /^(\d{1,2})(?::(\d{2}))?/.exec(h.trim())!;
+  return `${m[1]!.padStart(2, '0')}:${m[2] ?? '00'}`;
+}
+
+/** Morador · reservar área comum */
+export const reservaSchema = z
+  .object({
+    areaId: z.string().uuid({ message: 'Escolha o espaço' }),
+    data: dataBR,
+    inicio: hora,
+    fim: hora,
+  })
+  .transform((v, ctx) => {
+    const ini = parseDataBR(v.data, horaParaHHMM(v.inicio));
+    const fim = parseDataBR(v.data, horaParaHHMM(v.fim));
+    if (!ini || !fim || fim <= ini) {
+      ctx.addIssue({ code: 'custom', path: ['fim'], message: 'O fim deve ser depois do início' });
+      return z.NEVER;
+    }
+    if (ini.getTime() < Date.now()) {
+      ctx.addIssue({ code: 'custom', path: ['data'], message: 'Escolha uma data futura' });
+      return z.NEVER;
+    }
+    return { areaId: v.areaId, inicio: ini, fim };
+  });
+export type ReservaInput = z.input<typeof reservaSchema>;
+
+/** Morador · abrir ocorrência */
+export const ocorrenciaSchema = z.object({
+  titulo: z.string().trim().min(3, 'Descreva em poucas palavras'),
+  descricao: z.string().trim().max(2000).optional(),
+});
+
 /** Dono · criar condomínio */
 export const novoCondominioSchema = z.object({
   nome: z.string().trim().min(3, 'Informe o nome do condomínio'),

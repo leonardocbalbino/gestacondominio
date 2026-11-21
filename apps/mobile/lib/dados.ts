@@ -1,126 +1,71 @@
 /**
- * Acesso a dados do app do morador. Com Supabase configurado, tudo passa pelo RLS
- * (o morador só enxerga a própria unidade); sem ele, usa os dados fictícios do seed.
+ * Dados do app do morador via API do painel (/api/v1). No servidor tudo roda sob o RLS
+ * do próprio usuário. Sem EXPO_PUBLIC_API_URL, usa os dados fictícios do seed.
  */
-import { parseDataBR, type CessaoVagaInput, type EtapaDemanda } from '@gc/core';
-import { demoCederVaga, demoDemandas, demoMoradorInicio, type DemandaDemo } from '@gc/core/demo';
-import { MODO_DEMO, supabase } from './supabase';
+import type { CessaoVagaInput, ReservaInput } from '@gc/core';
+import {
+  demoAreas,
+  demoAssembleias,
+  demoCederVaga,
+  demoDemandas,
+  demoEncomendas,
+  demoMoradorInicio,
+  demoOcorrencias,
+  type DemandaDemo,
+} from '@gc/core/demo';
+import { Platform } from 'react-native';
+import { api, MODO_DEMO } from './api';
 
 export type Inicio = typeof demoMoradorInicio;
+export type Assembleia = (typeof demoAssembleias)[number];
+export type Encomenda = (typeof demoEncomendas)[number];
+export type Ocorrencia = (typeof demoOcorrencias)[number];
 
 const atraso = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 120));
 
-export async function carregarInicio(): Promise<Inicio> {
-  if (MODO_DEMO || !supabase) return atraso(demoMoradorInicio);
-  const sb = supabase;
-  const { data: u } = await sb.auth.getUser();
-  const uid = u.user?.id;
-  const { data: pessoa } = await sb.from('pessoas').select('id, nome, condominio_id, condominios(nome, sigla)').eq('user_id', uid!).single();
-  const { data: vinc } = await sb.from('vinculos').select('tipo, unidade_id, unidades(codigo)').eq('pessoa_id', pessoa!.id).is('fim', null).limit(1).single();
-  const unidadeId = vinc!.unidade_id as string;
-  const [moradores, bios, vaga, locs, reservas, demandas, notif] = await Promise.all([
-    sb.from('vinculos').select('pessoa_id', { count: 'exact', head: true }).eq('unidade_id', unidadeId).in('tipo', ['proprietario', 'inquilino', 'residente']),
-    sb.from('biometrias').select('id', { count: 'exact', head: true }),
-    sb.from('vagas').select('numero').eq('unidade_id', unidadeId).limit(1).maybeSingle(),
-    sb.from('locacoes').select('id, tipo, inicio, fim, status, pessoas:responsavel_pessoa_id(nome)').eq('unidade_id', unidadeId).order('inicio', { ascending: false }).limit(5),
-    sb.from('reservas').select('id, inicio, fim, status, areas_comuns(nome)').eq('unidade_id', unidadeId).gte('fim', new Date().toISOString()).limit(5),
-    listarDemandas(),
-    sb.from('notificacoes').select('id', { count: 'exact', head: true }).is('lida_em', null),
-  ]);
-  const cond = pessoa!.condominios as unknown as { nome: string; sigla: string };
-  const ROT: Record<string, string> = { proprietario: 'Proprietário', inquilino: 'Inquilino', residente: 'Residente' };
-  void demandas;
-  return {
-    condominio: { id: pessoa!.condominio_id, nome: cond.nome, sigla: cond.sigla } as Inicio['condominio'],
-    usuario: { primeiroNome: String(pessoa!.nome).split(' ')[0]!, notificacoesNaoLidas: notif.count ?? 0 },
-    unidade: { id: unidadeId, codigo: (vinc!.unidades as unknown as { codigo: string }).codigo, vinculo: ROT[vinc!.tipo] ?? vinc!.tipo } as Inicio['unidade'],
-    resumo: {
-      facialCadastradas: bios.count ?? 0,
-      facialTotal: moradores.count ?? 0,
-      vaga: vaga.data?.numero ?? '—',
-      locatariosPendentes: (locs.data ?? []).filter((l) => l.status === 'aguardando_sindico').length,
-    },
-    pedidos: [
-      ...(locs.data ?? []).map((l) => ({
-        id: l.id, titulo: `Locatário(a) · ${(l.pessoas as unknown as { nome: string } | null)?.nome ?? ''}`,
-        inicio: new Date(l.inicio), fim: new Date(l.fim), detalhe: l.tipo, status: l.status,
-      })),
-      ...(reservas.data ?? []).map((r) => ({
-        id: r.id, titulo: (r.areas_comuns as unknown as { nome: string }).nome,
-        inicio: new Date(r.inicio), fim: new Date(r.fim), detalhe: 'reserva', status: r.status,
-      })),
-    ],
-  };
+export const carregarInicio = () => (MODO_DEMO ? atraso(demoMoradorInicio) : api<Inicio>('inicio'));
+export const listarDemandas = () => (MODO_DEMO ? atraso(demoDemandas) : api<DemandaDemo[]>('demandas'));
+export const carregarDemanda = async (id: string) => (await listarDemandas()).find((d) => d.id === id) ?? null;
+export const enviarDuvida = (demandaId: string, pergunta: string) =>
+  MODO_DEMO ? atraso(undefined) : api('duvidas', { corpo: { demandaId, pergunta } });
+
+export const opcoesCessao = () => (MODO_DEMO ? atraso(demoCederVaga) : api<typeof demoCederVaga>('cessao/opcoes'));
+/** A unidade cessionária confirma no app antes de ir ao síndico. */
+export const enviarCessao = (v: CessaoVagaInput) => (MODO_DEMO ? atraso(undefined) : api('cessoes', { corpo: v }));
+
+export type NovaLocacao =
+  | { tipo: 'temporada'; responsavel: string; celular: string; checkin: Date; checkout: Date; hospedes: number; origem: string }
+  | { tipo: 'aluguel'; nome: string; celular: string; inicio: string; fim: string; imobiliaria?: string; moradores: number; contratoPath?: string };
+
+/** Cria a locação; para temporada devolve os links faciais (uso único) para compartilhar. */
+export const enviarLocacao = (v: NovaLocacao) =>
+  MODO_DEMO
+    ? atraso({ links: ['https://app.gestacondominio.com/f/demo-pedro-1102b-0123456789abcdef0123456789abcdef'] })
+    : api<{ links: string[] }>('locacoes', { corpo: v });
+
+/** Envia o PDF do contrato (o servidor guarda cifrado) e devolve a referência. */
+export async function enviarContrato(arquivo: { uri: string; name: string; file?: File }): Promise<string> {
+  if (MODO_DEMO) return atraso('demo.bin');
+  const form = new FormData();
+  if (Platform.OS === 'web' && arquivo.file) form.append('arquivo', arquivo.file);
+  else form.append('arquivo', { uri: arquivo.uri, name: arquivo.name, type: 'application/pdf' } as unknown as Blob);
+  return (await api<{ contratoPath: string }>('contratos', { form })).contratoPath;
 }
 
-export async function listarDemandas(): Promise<DemandaDemo[]> {
-  if (MODO_DEMO || !supabase) return atraso(demoDemandas);
-  const { data } = await supabase
-    .from('demandas_transparencia')
-    .select('id, titulo, local, etapa, teto, assembleia_em, etapas_demanda(etapa, detalhe), cotacoes(id, fornecedor, valor, prazo_dias, garantia_anos)')
-    .eq('publicada', true)
-    .order('created_at', { ascending: false });
-  return (data ?? []).map((d) => ({
-    id: d.id, titulo: d.titulo, local: d.local, etapa: d.etapa as EtapaDemanda, teto: d.teto === null ? null : Number(d.teto),
-    assembleiaEm: d.assembleia_em ? new Date(d.assembleia_em) : null,
-    etapas: (d.etapas_demanda ?? []) as DemandaDemo['etapas'],
-    cotacoes: (d.cotacoes ?? []).map((c) => ({ ...c, valor: Number(c.valor) })),
-  }));
-}
+export const listarAreas = () => (MODO_DEMO ? atraso(demoAreas) : api<{ id: string; nome: string }[]>('areas'));
+export const enviarReserva = (v: ReservaInput) => (MODO_DEMO ? atraso(undefined) : api('reservas', { corpo: v }));
 
-export async function carregarDemanda(id: string): Promise<DemandaDemo | null> {
-  return (await listarDemandas()).find((d) => d.id === id) ?? null;
-}
+export const listarAssembleias = () => (MODO_DEMO ? atraso(demoAssembleias) : api<Assembleia[]>('assembleias'));
+export const votar = (pautaId: string, opcao: 'sim' | 'nao' | 'abstencao') =>
+  MODO_DEMO ? atraso(undefined) : api('votos', { corpo: { pautaId, opcao } });
 
-export async function opcoesCessao() {
-  if (MODO_DEMO || !supabase) return atraso(demoCederVaga);
-  const ini = await carregarInicio();
-  const [vagas, destinos] = await Promise.all([
-    supabase.from('vagas').select('id, numero, local, descricao').eq('unidade_id', ini.unidade.id),
-    supabase.rpc('unidades_destino', { p_condominio: ini.condominio.id }),
-  ]);
-  return {
-    vagas: (vagas.data ?? []).map((v) => ({ id: v.id, numero: v.numero, local: v.local ?? '', tipo: v.descricao ?? '' })),
-    unidadesDestino: ((destinos.data ?? []) as { unidade_id: string; rotulo: string }[]).map((d) => ({ id: d.unidade_id, rotulo: d.rotulo })),
-    sugestao: { inicio: '', fim: '', placa: '' },
-  };
-}
+export const listarEncomendas = () => (MODO_DEMO ? atraso(demoEncomendas) : api<Encomenda[]>('encomendas'));
+export const listarOcorrencias = () => (MODO_DEMO ? atraso(demoOcorrencias) : api<Ocorrencia[]>('ocorrencias'));
+export const abrirOcorrencia = (titulo: string, descricao?: string) =>
+  MODO_DEMO ? atraso(undefined) : api('ocorrencias', { corpo: { titulo, descricao } });
 
-/** Envia a cessão: a unidade cessionária confirma no app antes de ir ao síndico. */
-export async function enviarCessao(v: { vagaId: string; unidadeCessionariaId: string; inicio: string; fim?: string; semTermino?: boolean; placa: string; valorMensal?: number }): Promise<void> {
-  if (MODO_DEMO || !supabase) return atraso(undefined);
-  const ini = await carregarInicio();
-  const iso = (t: string) => parseDataBR(t)!.toISOString().slice(0, 10);
-  const { error } = await supabase.from('cessoes_vaga').insert({
-    condominio_id: ini.condominio.id, vaga_id: v.vagaId, unidade_cedente_id: ini.unidade.id,
-    unidade_cessionaria_id: v.unidadeCessionariaId, inicio: iso(v.inicio), fim: v.semTermino || !v.fim ? null : iso(v.fim),
-    placa: v.placa, valor_mensal: v.valorMensal ?? null,
-  });
-  if (error) throw new Error('Não foi possível enviar o pedido');
-}
-export type { CessaoVagaInput };
-
-/** Cria a locação; para temporada, devolve os links faciais (uso único) para compartilhar. */
-export async function enviarLocacao(
-  v:
-    | { tipo: 'temporada'; responsavel: string; celular: string; checkin: Date; checkout: Date; hospedes: number; origem: string }
-    | { tipo: 'aluguel'; nome: string; celular: string; inicio: string; fim: string; imobiliaria?: string; moradores: number },
-): Promise<{ links: string[] }> {
-  if (MODO_DEMO || !supabase) return atraso({ links: ['https://app.gestacondominio.com/f/demo-pedro-1102b-0123456789abcdef0123456789abcdef'] });
-  const ini = await carregarInicio();
-  const base = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://app.gestacondominio.com';
-  const r =
-    v.tipo === 'temporada'
-      ? await supabase.rpc('criar_locacao_temporada', {
-          p_unidade: ini.unidade.id, p_responsavel: v.responsavel, p_celular: v.celular,
-          p_checkin: v.checkin.toISOString(), p_checkout: v.checkout.toISOString(), p_hospedes: v.hospedes, p_origem: v.origem,
-        })
-      : await supabase.rpc('criar_locacao_aluguel', {
-          p_unidade: ini.unidade.id, p_nome: v.nome, p_celular: v.celular,
-          p_inicio: parseDataBR(v.inicio)!.toISOString().slice(0, 10), p_fim: parseDataBR(v.fim)!.toISOString().slice(0, 10),
-          p_moradores: v.moradores, p_imobiliaria: v.imobiliaria ?? null,
-        });
-  if (r.error) throw new Error('Não foi possível enviar');
-  const links = ((r.data as { links: { token: string }[] }).links ?? []).map((l) => `${base}/f/${l.token}`);
-  return { links };
-}
+export const exportarMeusDados = () => (MODO_DEMO ? atraso({ aviso: 'Modo demonstração' }) : api<unknown>('meus-dados'));
+export const revogarFacial = () => (MODO_DEMO ? atraso(undefined) : api('facial/revogar', { metodo: 'POST' }));
+export const pedidoTitular = (tipo: 'correcao' | 'exclusao') => (MODO_DEMO ? atraso(undefined) : api('pedidos-titular', { corpo: { tipo } }));
+export const registrarPush = (token: string, plataforma: string) =>
+  MODO_DEMO ? atraso(undefined) : api('push', { corpo: { token, plataforma } });

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, Text, TextInput, View, type PressableProps, type TextInputProps, type TextProps } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View, type PressableProps, type TextInputProps, type TextProps } from 'react-native';
 import { colors, type BadgeTone } from '@gc/ui';
 import { Voltar } from './icones';
 
@@ -108,6 +108,22 @@ export function Botao({ titulo, variante = 'primario', icone, desabilitado, ...p
       {icone}
       <Text className={`font-inter-semibold text-[15px] ${pri ? 'text-white' : 'text-ink'}`}>{titulo}</Text>
     </Pressable>
+  );
+}
+
+/** Estado de carregamento/erro de uma tela inteira. */
+export function Carregando({ erro, onTentar }: { erro?: string | null; onTentar?: () => void }) {
+  return (
+    <View className="flex-1 items-center justify-center gap-3 bg-bg px-6">
+      {erro ? (
+        <>
+          <T className="text-center text-muted">{erro}</T>
+          {onTentar ? <Botao variante="contorno" titulo="Tentar de novo" onPress={onTentar} /> : null}
+        </>
+      ) : (
+        <ActivityIndicator color={colors.primary} />
+      )}
+    </View>
   );
 }
 

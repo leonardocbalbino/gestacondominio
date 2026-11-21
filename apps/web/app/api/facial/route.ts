@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
+import { apagarArquivo, salvarArquivo } from '@/lib/arquivos';
+import { banco, MODO_DEMO } from '@/lib/db';
 import { demo } from '@/lib/demo-store';
-import { MODO_DEMO, supabaseServico } from '@/lib/supabase/server';
+import { limitar } from '@/lib/limite';
 
+export const runtime = 'nodejs';
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
- * Recebe a foto do link facial e grava no bucket PRIVADO "biometrias".
- * - nome do arquivo aleatório (sem dados pessoais no caminho)
- * - a gravação só é aceita se houver consentimento ativo (checado no banco)
- * - nada é logado além do resultado
+ * Recebe a foto do link facial e grava CIFRADA (AES-256-GCM) no armazenamento privado.
+ * - nome de arquivo aleatório (sem dado pessoal)
+ * - só é aceita com consentimento ativo e link válido (checado no banco); senão o arquivo é apagado
  */
 export async function POST(req: Request) {
+  if (!(await limitar('facial-foto', 10, 10 * 60_000))) return NextResponse.json({ erro: 'Muitas tentativas' }, { status: 429 });
   const form = await req.formData();
   const token = String(form.get('token') ?? '');
   const foto = form.get('foto');
@@ -26,13 +29,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const sb = await supabaseServico();
-  const path = `${crypto.randomUUID()}.jpg`;
-  const up = await sb.storage.from('biometrias').upload(path, foto, { contentType: 'image/jpeg', upsert: false });
-  if (up.error) return NextResponse.json({ erro: 'Falha ao gravar a foto' }, { status: 500 });
-  const { error } = await sb.rpc('registrar_biometria_link', { p_token: token, p_path: path });
-  if (error) {
-    await sb.storage.from('biometrias').remove([path]); // sem base legal, não guarda
+  const nome = await salvarArquivo('biometrias', new Uint8Array(await foto.arrayBuffer()));
+  try {
+    await banco().comoServico((q) => q('select public.registrar_biometria_link($1, $2)', [token, nome]));
+  } catch {
+    await apagarArquivo('biometrias', nome); // sem base legal, não guarda
     return NextResponse.json({ erro: 'Link expirado ou sem consentimento' }, { status: 403 });
   }
   return NextResponse.json({ ok: true });

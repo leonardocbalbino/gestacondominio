@@ -1,37 +1,27 @@
 import { Link, router, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BADGE_ETAPA, BADGE_STATUS, formatDiaMes, formatFaixaHoras, formatPeriodo, resumoCotacoes } from '@gc/core';
 import type { DemandaDemo } from '@gc/core/demo';
 import { colors } from '@gc/ui';
 import { AddPessoa, Calendario, Facial, Sino, Vaga } from '@/components/icones';
-import { Badge, Card, T, Titulo } from '@/components/ui';
+import { Badge, Card, Carregando, T, Titulo } from '@/components/ui';
 import { carregarInicio, listarDemandas, type Inicio } from '@/lib/dados';
+import { useDados } from '@/lib/useDados';
 
 /** Morador · Início */
 export default function TelaInicio() {
-  const [d, setD] = useState<Inicio | null>(null);
-  const [demandas, setDemandas] = useState<DemandaDemo[]>([]);
+  const { dados: d, erro, recarregar } = useDados<Inicio>(carregarInicio);
+  const { dados: listaDemandas } = useDados<DemandaDemo[]>(listarDemandas);
+  const demandas = listaDemandas ?? [];
 
-  useEffect(() => {
-    carregarInicio().then(setD);
-    listarDemandas().then(setDemandas);
-  }, []);
-
-  if (!d) {
-    return (
-      <View className="flex-1 items-center justify-center bg-bg">
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
+  if (!d) return <Carregando erro={erro} onTentar={recarregar} />;
 
   const acoes: { rotulo: string; href: Href; Icone: typeof AddPessoa }[] = [
     { rotulo: 'Cadastrar locatário', href: '/locatario', Icone: AddPessoa },
     { rotulo: 'Ceder minha vaga', href: '/ceder-vaga', Icone: Vaga },
     { rotulo: 'Cadastro facial', href: '/perfil', Icone: Facial },
-    { rotulo: 'Reservar espaço', href: '/servicos', Icone: Calendario },
+    { rotulo: 'Reservar espaço', href: '/reservar', Icone: Calendario },
   ];
 
   return (

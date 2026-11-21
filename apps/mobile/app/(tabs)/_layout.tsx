@@ -1,4 +1,6 @@
 import { router, Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { temSessao } from '@/lib/api';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@gc/ui';
@@ -14,6 +16,14 @@ const ABAS = [
 /** Barra inferior de 4 abas, como no design: branca, borda superior, ícone 22 + rótulo 11. */
 export default function LayoutAbas() {
   const insets = useSafeAreaInsets();
+  const [liberado, setLiberado] = useState(false);
+
+  // Sem sessão, vai para o login (no modo demonstração entra direto).
+  useEffect(() => {
+    temSessao().then((ok) => (ok ? setLiberado(true) : router.replace('/login')));
+  }, []);
+  if (!liberado) return null;
+
   return (
     <Tabs
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}

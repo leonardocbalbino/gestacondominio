@@ -12,6 +12,11 @@ export function NovoCondominio({ planos }: { planos: { id: string; nome: string;
   return (
     <Card className="flex flex-col gap-3 p-4">
       <CardTitle>Novo condomínio</CardTitle>
+      {estado.emailEnviado ? (
+        <div className="rounded-md border border-primary-soft-border bg-primary-tint p-3 text-[13px]" role="status">
+          <b>{estado.nome}</b> criado em implantação. O convite foi enviado por e-mail ao síndico (válido por 7 dias).
+        </div>
+      ) : null}
       {estado.conviteLink ? (
         <div className="rounded-md border border-primary-soft-border bg-primary-tint p-3 text-[13px]" role="status">
           <b>{estado.nome}</b> criado em implantação. Convite do síndico (mostrado só agora, válido por 7 dias):

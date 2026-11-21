@@ -1,0 +1,93 @@
+# Produção em uma VPS: Postgres 17 + painel + worker + Caddy (HTTPS automático).
+# Uso (na pasta infra/):  cp .env.example .env  →  preencha  →  docker compose up -d --build
+name: gestacondominio
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gestacondominio
+      POSTGRES_USER: gc_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      TZ: America/Sao_Paulo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gc_admin -d gestacondominio"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Sem porta publicada: o banco só é acessível pela rede interna do compose.
+
+  # Aplica migrações pendentes e garante o usuário gc_app (sem privilégios próprios). Roda e sai.
+  migrar:
+    build: { context: .., target: tools }
+    image: gestacondominio-tools
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL_ADMIN: postgres://gc_admin:${POSTGRES_PASSWORD}@postgres:5432/gestacondominio
+      GC_APP_PASSWORD: ${GC_APP_PASSWORD:?defina GC_APP_PASSWORD}
+    command: ["sh", "-c", "cd packages/db && node_modules/.bin/tsx src/cli.ts migrate && node_modules/.bin/tsx src/cli.ts app-user"]
+
+  web:
+    build: { context: .., target: web }
+    image: gestacondominio-web
+    restart: unless-stopped
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+    environment: &app_env
+      DATABASE_URL: postgres://gc_app:${GC_APP_PASSWORD}@postgres:5432/gestacondominio
+      APP_CRYPTO_KEY: ${APP_CRYPTO_KEY:?defina APP_CRYPTO_KEY}
+      APP_URL: https://${DOMINIO:?defina DOMINIO}
+      STORAGE_DIR: /dados
+      SMTP_URL: ${SMTP_URL:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      API_ORIGENS: ${API_ORIGENS:-}
+      TZ: America/Sao_Paulo
+    volumes:
+      - arquivos:/dados
+
+  worker:
+    image: gestacondominio-tools
+    restart: unless-stopped
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+    environment: *app_env
+    volumes:
+      - arquivos:/dados
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Backup diário do banco (mantém 14 dias). Os arquivos cifrados ficam no volume "arquivos".
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - backups:/backups
+    entrypoint: ["sh", "-c", "while true; do pg_dump -h postgres -U gc_admin -Fc gestacondominio > /backups/gc-$$(date +%F).dump && find /backups -name 'gc-*.dump' -mtime +14 -delete; sleep 86400; done"]
+
+volumes:
+  pgdata:
+  arquivos:
+  backups:
+  caddy_data:
+  caddy_config:

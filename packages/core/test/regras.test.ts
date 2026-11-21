@@ -12,8 +12,11 @@ import {
   formatPeriodo,
   linkFacialValido,
   locacaoSchema,
+  ocorrenciaSchema,
+  reservaSchema,
   mascararCPF,
   mascararCelular,
+  parseCheckBR,
   parseDataBR,
   pode,
   podeTransicionarCessao,
@@ -40,6 +43,19 @@ describe('formatação pt-BR', () => {
     expect(formatPeriodo(new Date('2026-11-22T17:00:00Z'), new Date('2026-11-25T14:00:00Z'))).toBe('22 a 25/11');
     expect(formatPeriodo(new Date('2026-11-28T17:00:00Z'), new Date('2026-12-02T14:00:00Z'))).toBe('28/11 a 02/12');
     expect(formatPeriodo(new Date('2026-12-13T21:00:00Z'), new Date('2026-12-14T02:00:00Z'))).toBe('13/12 · 18h às 23h');
+  });
+  it('lê check-in/check-out no formato das telas', () => {
+    const ref = new Date('2026-11-21T12:00:00-03:00');
+    expect(parseCheckBR('22/11 · 14h', ref)?.toISOString()).toBe('2026-11-22T17:00:00.000Z');
+    expect(parseCheckBR('25/11 11h', ref)?.toISOString()).toBe('2026-11-25T14:00:00.000Z');
+    expect(parseCheckBR('22/11/2026 14:30', ref)?.toISOString()).toBe('2026-11-22T17:30:00.000Z');
+    expect(parseCheckBR('05/01 · 10h', ref)?.toISOString()).toBe('2027-01-05T13:00:00.000Z');
+    expect(parseCheckBR('31/02 · 10h', ref)).toBeNull();
+    expect(parseCheckBR('22/11 · 25h', ref)).toBeNull();
+    expect(parseCheckBR('amanhã', ref)).toBeNull();
+    // ida e volta com o formato exibido
+    const d = parseCheckBR('22/11 · 14h', ref)!;
+    expect(formatCheck(d)).toBe('22/11 · 14h');
   });
   it('lê datas dd/mm/aaaa e rejeita inválidas', () => {
     expect(parseDataBR('01/12/2026')?.toISOString()).toBe('2026-12-01T03:00:00.000Z');
@@ -143,6 +159,22 @@ describe('pedidos do morador', () => {
     expect(linkFacialValido(exp, new Date(), new Date('2026-11-22T12:00:00Z'))).toBe(false);
     const enviado = new Date('2026-11-21T12:00:00Z');
     expect(expiracaoLink(enviado, new Date('2026-11-22T12:00:00Z')).toISOString()).toBe('2026-11-22T12:00:00.000Z');
+  });
+});
+
+describe('reservas e ocorrências', () => {
+  it('reserva exige fim depois do início e data futura', () => {
+    const base = { areaId: '80000000-0000-4000-8000-000000000001', data: '13/12/2099' };
+    const ok = reservaSchema.parse({ ...base, inicio: '18h', fim: '23:00' });
+    expect(ok.inicio.toISOString()).toBe('2099-12-13T21:00:00.000Z');
+    expect(ok.fim.toISOString()).toBe('2099-12-14T02:00:00.000Z');
+    expect(reservaSchema.safeParse({ ...base, inicio: '23h', fim: '18h' }).success).toBe(false);
+    expect(reservaSchema.safeParse({ ...base, data: '01/01/2020', inicio: '10h', fim: '12h' }).success).toBe(false);
+    expect(reservaSchema.safeParse({ ...base, inicio: '25h', fim: '26h' }).success).toBe(false);
+  });
+  it('ocorrência precisa de título', () => {
+    expect(ocorrenciaSchema.safeParse({ titulo: 'ok' }).success).toBe(false);
+    expect(ocorrenciaSchema.safeParse({ titulo: 'Vazamento na garagem' }).success).toBe(true);
   });
 });
 

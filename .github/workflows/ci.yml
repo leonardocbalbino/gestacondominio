@@ -16,6 +16,9 @@ jobs:
         ports: ["55339:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      APP_CRYPTO_KEY: chave-de-ci-0123456789abcdef0123456789abcdef
+      GC_APP_PASSWORD: senha-do-gc-app-no-ci-123
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,13 +29,29 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Regras de negócio (Vitest)
         run: pnpm --filter @gc/core test
-      - name: RLS / LGPD no banco (Vitest + Postgres)
+      - name: Auth, RLS e LGPD no Postgres (Vitest)
         run: pnpm --filter @gc/db test
       - name: Typecheck
         run: pnpm -r typecheck
-      - name: Build do painel web
+      - name: Build do painel
         run: pnpm --filter @gc/web build
-      - name: E2E (Playwright, modo demonstração)
+      - run: pnpm --filter @gc/web exec playwright install --with-deps chromium
+      - name: E2E — modo demonstração
+        run: pnpm --filter @gc/web test:e2e
+      - name: E2E — Postgres real (login, 2FA, RLS, link facial)
+        env:
+          DATABASE_URL_ADMIN: postgres://postgres:postgres@127.0.0.1:55339/gc_e2e
+          DATABASE_URL: postgres://gc_app:senha-do-gc-app-no-ci-123@127.0.0.1:55339/gc_e2e
+          STORAGE_DIR: /tmp/gc-arquivos
         run: |
-          pnpm --filter @gc/web exec playwright install --with-deps chromium
-          pnpm --filter @gc/web test:e2e
+          psql postgres://postgres:postgres@127.0.0.1:55339/postgres -c "create database gc_e2e"
+          pnpm --filter @gc/db migrate && pnpm --filter @gc/db seed && pnpm --filter @gc/db app-user
+          (cd apps/web && pnpm exec next start -p 3300 &) && npx --yes wait-on http://localhost:3300/login
+          pnpm --filter @gc/web test:e2e:real
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target web -t gestacondominio-web .
+      - run: docker build --target tools -t gestacondominio-tools .

@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/.expo
+**/.armazenamento
+**/test-results
+**/playwright-report
+.git
+.github
+docs
+apps/mobile/*
+!apps/mobile/package.json
+**/.env
+**/.env.*
+!**/.env.example

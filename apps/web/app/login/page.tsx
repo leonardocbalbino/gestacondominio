@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
-import { MODO_DEMO } from '@/lib/supabase/server';
+import { MODO_DEMO } from '@/lib/db';
 import { FormLogin } from './form-login';
 
 export const metadata: Metadata = { title: 'Entrar' };
+// O modo (demonstração ou banco real) é decidido em tempo de execução, não no build.
+export const dynamic = 'force-dynamic';
 
 export default function Page() {
   return (

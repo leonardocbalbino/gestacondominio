@@ -120,7 +120,7 @@ describe('Morador', () => {
     await como(U.ricardo, async ({ q, admin }) => {
       const [r] = await q<{ cpf_completo: string }>(`select public.cpf_completo('50000000-0000-4000-8000-0000000000a4')`);
       expect(r!.cpf_completo).toBe('13579246828');
-      const aud = await admin(`select * from public.auditoria where acao = 'ler_cpf_completo' and ator = $1`, [U.ricardo]);
+      const aud = await admin(`select * from public.auditoria where acao = 'ler_cpf_completo' and ator = $1 and created_at = now()`, [U.ricardo]);
       expect(aud).toHaveLength(1);
     });
   });

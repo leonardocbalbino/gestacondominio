@@ -1,66 +1,86 @@
 # GestaCondomínio
 
-Plataforma SaaS multi-condomínio: painel web (dono do sistema, síndico, portaria), app do morador (Expo) e link público de cadastro facial — com privacidade por padrão (LGPD).
+Plataforma SaaS multi-condomínio: painel web (dono do sistema, síndico, portaria), app do morador (Expo) e link público de cadastro facial. Privacidade por padrão (LGPD).
 
-## Estrutura
+**Banco: PostgreSQL puro** (sem Supabase). O isolamento entre condomínios e as regras de privacidade são aplicados **no próprio Postgres** com Row Level Security.
+
+## Arquitetura
+
+```
+App do morador (Expo) ──HTTPS /api/v1 (Bearer)──┐
+Navegador (painéis, link facial) ──cookie──────┤
+                                                ▼
+                         Next.js 15 (apps/web) ──► PostgreSQL 17
+                         Worker (apps/worker)  ──►   ├ schema auth (login, sessões, TOTP)
+                                                     ├ RLS em todas as tabelas
+                         Disco privado (/dados) ◄─   └ jobs LGPD (pg_cron ou worker)
+                         arquivos cifrados AES-256-GCM
+```
+
+- **Conexão:** a aplicação entra como `gc_app`, que não tem privilégio nenhum. Cada requisição abre uma transação com `SET LOCAL ROLE authenticated` + o id do usuário. As políticas RLS usam `auth.uid()`, então mesmo um bug no código não vaza dados de outro condomínio.
+- **Login próprio** (`schema auth`): senhas bcrypt, sessões com token opaco (só o hash fica no banco), bloqueio após 5 erros, **TOTP verificado dentro do Postgres** (o segredo não sai do banco), 2FA obrigatório para dono, síndico e portaria.
+- **Arquivos** (biometria, contratos): cifrados com AES-256-GCM em disco privado, nome aleatório, servidos só por rotas que checam permissão.
+- **Chave de criptografia** (`APP_CRYPTO_KEY`): injetada por transação. Nunca fica gravada no banco nem nos backups.
 
 | Caminho | O quê |
 |---|---|
-| `apps/web` | Next.js 15 (App Router) + Tailwind 4 + componentes no padrão shadcn/ui. Painéis `/dono`, `/sindico`, `/portaria`, link facial `/f/[token]`, `/privacidade`. |
-| `apps/mobile` | Expo SDK 58 + Expo Router + NativeWind 4. Telas do morador: Início, Ceder vaga, Cadastrar locatário, Orçamento público, Transparência, Serviços, Perfil (direitos LGPD). |
-| `packages/ui` | Design tokens (cores, raios, fontes) — fonte única para web e mobile. |
-| `packages/core` | Regras de negócio, formatação pt-BR (R$, dd/mm, America/Sao_Paulo), schemas Zod, adaptadores de controle de acesso (Control iD, Hikvision, Intelbras, mock). |
-| `packages/db` | Supabase: migrações SQL (schema, RLS, RPCs, jobs, storage), seed com 2 condomínios fictícios, testes de RLS, Edge Functions. |
-| `docs/design` | As 5 telas de referência (HTML). |
+| `apps/web` | Next.js 15 + Tailwind 4 (padrão shadcn/ui). Painéis `/dono`, `/sindico`, `/portaria`, link facial `/f/[token]`, `/privacidade`, convite `/convite/[token]`, API do app `/api/v1/*`. |
+| `apps/mobile` | Expo SDK 58 + Expo Router + NativeWind 4. Início, Ceder vaga, Cadastrar locatário, Orçamento público, Transparência, Reservas, Assembleias, Encomendas, Ocorrências, Perfil (LGPD), login. |
+| `apps/worker` | Jobs LGPD, fila de exclusão de arquivos, push (Expo), limpeza de sessões. |
+| `packages/db` | Migrações SQL, seed fictício, migrador, cliente `Banco` (transação com papel), testes de auth/RLS. |
+| `packages/core` | Regras de negócio, formatação pt-BR, schemas Zod, adaptadores de leitores faciais (Control iD, Hikvision, Intelbras). |
+| `packages/ui` | Design tokens (web + mobile). |
+| `infra/` | `docker-compose.yml` de produção (Postgres, painel, worker, Caddy/HTTPS, backup diário). |
 
-## Rodando
+## Desenvolvimento
 
 ```bash
 pnpm install
-
-# Painel web em modo demonstração (sem Supabase, dados fictícios em memória)
-pnpm --filter @gc/web dev            # http://localhost:3000
-
-# App do morador (modo demonstração)
-pnpm --filter @gc/mobile dev         # Expo Go, ou "w" para web
+pnpm db:test:up                                   # Postgres 17 em Docker (porta 55339)
+docker exec test-postgres-teste-1 createdb -U postgres gc_dev
+cp .env.example apps/web/.env.local               # preencha GC_APP_PASSWORD e APP_CRYPTO_KEY
+pnpm db:migrate && pnpm db:seed && pnpm db:app-user   # com as variáveis do .env.example exportadas
+pnpm --filter @gc/web dev                         # http://localhost:3000
+pnpm --filter @gc/mobile dev                      # EXPO_PUBLIC_API_URL=http://<seu-ip>:3000
 ```
 
-Com Supabase local (Docker): `pnpm db:start` sobe a stack em `http://127.0.0.1:55321` (portas 553xx — a faixa 54301–54400 é reservada pelo Hyper-V no Windows). Copie `.env.example` para `apps/web/.env.local` / `apps/mobile/.env` com as chaves exibidas. Seed: `pnpm db:reset`. Usuários de teste: `*@example.com`, senha `Demo@2026!` (ver `packages/db/supabase/seed.sql`).
+Sem `DATABASE_URL`, o painel abre em **modo demonstração** (dados fictícios em memória); sem `EXPO_PUBLIC_API_URL`, o app também.
+
+Usuários do seed (fictícios, senha `Demo@2026!`): `dono@example.com`, `helena.prado@example.com` (síndica), `portaria.acacias@example.com`, `ricardo.alves@example.com` (morador 304-A), `marcos.teixeira@example.com` (síndico de outro condomínio) e outros em `packages/db/seed.sql`. No primeiro login de dono, síndico ou portaria, o painel pede para cadastrar o 2FA.
 
 ## Testes
 
 ```bash
-pnpm --filter @gc/core test          # regras de negócio (23)
-pnpm db:test:up && pnpm test:rls     # RLS/LGPD direto no Postgres (59)
-pnpm --filter @gc/web build && pnpm test:e2e   # Playwright (8)
+pnpm --filter @gc/core test        # regras de negócio (26)
+pnpm test:rls                      # auth + RLS + LGPD no Postgres (70)
+pnpm --filter @gc/web build
+pnpm test:e2e                      # Playwright, modo demonstração (8)
+pnpm test:e2e:real                 # Playwright contra Postgres real: login, 2FA, aprovação, portaria, link facial (5)
 ```
 
-Os testes de RLS rodam as migrações reais num Postgres efêmero (porta 55339) com um shim mínimo do Supabase (`auth.uid()`, roles). Exemplos do que é verificado:
+Os testes de banco usam o mesmo migrador e o mesmo seed de produção. Entre outras coisas, eles verificam que:
 
-- dono do sistema **não lê** `pessoas.nome` (nem nenhuma outra tabela pessoal) e não grava; vê só métricas agregadas com contagens < 3 exibidas como “< 3”;
-- isolamento total entre condomínios;
-- portaria vê CPF mascarado (`***.456.789-**`), sem contrato, valor ou contato;
-- valor da cessão de vaga visível só para cedente, cessionária e síndico;
-- break-glass: só após aprovação do síndico, somente leitura, expira sozinho, nunca vê biometria;
-- auditoria imutável (nem o superusuário altera) e sem valores pessoais;
-- link facial: anônimo só vê primeiro nome/unidade/validade; foto só com consentimento; uso único; expira;
-- jobs: exclusão de biometria no check-out/revogação, retenção de 6 meses da portaria.
+- o dono do sistema **não lê** `pessoas.nome` nem nenhum dado pessoal; vê só agregados com contagens < 3 como “< 3”;
+- um condomínio não enxerga outro; o `gc_app` sem papel não lê nada;
+- a portaria vê CPF mascarado (`***.456.789-**`), sem contrato, valor ou contato;
+- o acesso de suporte (break-glass) só vale com aprovação do síndico, somente leitura, e expira;
+- a auditoria é imutável (nem o superusuário altera) e não guarda valores pessoais;
+- o bloqueio de login após 5 erros persiste; o TOTP confere com o vetor oficial da RFC 6238;
+- o link facial é de uso único, expira e só aceita foto com consentimento;
+- o banco impede duas reservas no mesmo horário;
+- os jobs apagam biometria no check-out e na revogação, e registros da portaria após 6 meses.
 
-## LGPD — como está implementado
+## Produção (VPS)
 
-- **Papéis:** condomínio = controlador; plataforma = operadora. Aceite do DPA registrado (data, IP, versão) no aceite do convite do síndico. Campo de encarregado (DPO) por condomínio.
-- **Dono sem dados pessoais:** política `RESTRICTIVE` em todas as tabelas do tenant + métricas via RPC agregada.
-- **Criptografia:** CPF e celular com `pgp_sym_encrypt` (chave no Supabase Vault), hash HMAC para busca, versões mascaradas para exibição. CPF completo só via RPC auditada (síndico ou titular).
-- **Biometria:** consentimento explícito antes da câmera abrir; bucket privado sem políticas para clientes; caminho aleatório; exclusão automática no fim do período; revogação apaga.
-- **Direitos do titular:** exportar JSON, pedir correção/exclusão/revogação (prazo 15 dias), no web (`/privacidade`) e no app (Perfil).
-- **2FA (TOTP)** para dono, síndico e portaria.
+Veja [infra/DEPLOY.md](infra/DEPLOY.md). Resumo: `cd infra && cp .env.example .env` → preencher → `docker compose up -d --build`.
 
-## Status por fase
+## Status
 
-| Fase | Feito | Pendente |
+| Área | Feito | Pendente |
 |---|---|---|
-| 1 — Base | Monorepo, tokens, auth (e-mail/senha + fluxo TOTP), schema multi-tenant com RLS + 59 testes, painel do dono (métricas agregadas, criar condomínio, convite do síndico), seed 2 condomínios | Validar ponta a ponta com `supabase start` (os testes rodam no Postgres puro); e-mail de convite (hoje o link é exibido uma vez ao dono) |
-| 2 — Morador | 4 telas no app + link facial na web, fiéis ao design; aprovações do síndico | Tela de login no app; seletor de data/hora nativo no check-in/out; upload do PDF do contrato |
-| 3 — Operação | Painel da portaria (registro de acesso, CPF mascarado, vagas cedidas), notificações no banco, jobs (pg_cron + Edge Functions) | Push (Expo Notifications); encomendas/ocorrências na UI |
-| 4 — Governança | Transparência (cotações, teto, linha do tempo), break-glass, auditoria, direitos do titular; assembleias/voto no banco (1 voto por unidade) | UI de assembleias; rate limit no link público |
-| 5 — Integrações | Adaptadores Control iD / Hikvision / Intelbras (testados com cliente HTTP simulado), planos, `eas.json` | Validar em equipamento real; agente local na rede do condomínio; gateway de cobrança; contas das lojas |
+| Base | Monorepo, tokens, auth própria + TOTP, RLS + 70 testes, migrador, Docker/Compose | — |
+| Dono | Métricas agregadas, criar condomínio, convite por e-mail (SMTP) | Cobrança (gateway de pagamento) |
+| Síndico | Aprovações, break-glass, aceite do DPA | Telas de gestão de unidades/moradores, publicar transparência pelo painel |
+| Portaria | Pessoas autorizadas (CPF mascarado), vagas cedidas, registro de acesso, aviso de encomenda | — |
+| Morador (app) | 5 telas do design + reservas, assembleias/voto, encomendas, ocorrências, LGPD, login, push | Builds nas lojas (contas Apple/Google, `eas init`) |
+| Hardware | Adaptadores Control iD/Hikvision/Intelbras (testados com HTTP simulado) | Validar em equipamento real; agente local na rede do condomínio |

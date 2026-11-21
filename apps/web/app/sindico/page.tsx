@@ -16,7 +16,7 @@ const ROTULO_TIPO = { locacao: 'Locação', cessao: 'Cessão de vaga', reserva: 
 export default async function Page() {
   const sessao = await exigirPerfil('sindico', 'conselho');
   const cid = sessao.condominioId!;
-  const [pendentes, suporte] = await Promise.all([aprovacoesPendentes(cid), pedidosSuporte(cid)]);
+  const [pendentes, suporte] = await Promise.all([aprovacoesPendentes(sessao.userId, cid), pedidosSuporte(sessao.userId, cid)]);
   const ehSindico = sessao.perfil === 'sindico';
 
   return (

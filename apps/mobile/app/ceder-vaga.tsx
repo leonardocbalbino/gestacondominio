@@ -7,6 +7,7 @@ import { colors } from '@gc/ui';
 import { Cadeado } from '@/components/icones';
 import { Botao, Cabecalho, Caixa, Campo, Rodape, Rotulo, Seletor, T } from '@/components/ui';
 import { enviarCessao, opcoesCessao } from '@/lib/dados';
+import { tratarErro } from '@/lib/useDados';
 
 type Opcoes = Awaited<ReturnType<typeof opcoesCessao>>;
 
@@ -24,14 +25,16 @@ export default function TelaCederVaga() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    opcoesCessao().then((o) => {
-      setOp(o);
-      setVagaId(o.vagas[0]?.id ?? '');
-      setDestino(o.unidadesDestino[0]?.id ?? '');
-      setInicio(o.sugestao.inicio);
-      setFim(o.sugestao.fim);
-      setPlaca(o.sugestao.placa);
-    });
+    opcoesCessao()
+      .then((o) => {
+        setOp(o);
+        setVagaId(o.vagas[0]?.id ?? '');
+        setDestino(o.unidadesDestino[0]?.id ?? '');
+        setInicio(o.sugestao.inicio);
+        setFim(o.sugestao.fim);
+        setPlaca(o.sugestao.placa);
+      })
+      .catch(tratarErro);
   }, []);
 
   const destinoRotulo = op?.unidadesDestino.find((u) => u.id === destino)?.rotulo.split(' · ')[0] ?? 'unidade';
@@ -50,7 +53,7 @@ export default function TelaCederVaga() {
       Alert.alert('Pedido enviado', `A ${destinoRotulo} confirma no app e depois o síndico aprova.`);
       router.back();
     } catch (e) {
-      Alert.alert('Erro', (e as Error).message);
+      tratarErro(e);
     } finally {
       setEnviando(false);
     }

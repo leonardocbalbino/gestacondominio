@@ -60,7 +60,7 @@ test('portaria vê CPF mascarado e registra acesso', async ({ page }) => {
   await expect(page.getByText('BRA-2E19')).toBeVisible();
 
   await page.getByLabel('Tipo').selectOption('visitante');
-  await page.getByLabel('Unidade').fill('502-b');
+  await page.getByLabel('Unidade', { exact: true }).fill('502-b');
   await page.getByRole('button', { name: 'Registrar' }).click();
   await expect(page.getByText(/Visitante · 502-B/)).toBeVisible();
 });

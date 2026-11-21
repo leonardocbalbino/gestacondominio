@@ -1,7 +1,13 @@
+import { join } from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@gc/core', '@gc/ui'],
+  // Monorepo: rastreia dependências a partir da raiz (necessário para o build standalone).
+  outputFileTracingRoot: join(__dirname, '../../'),
+  transpilePackages: ['@gc/core', '@gc/ui', '@gc/db'],
+  serverExternalPackages: ['pg', 'nodemailer'],
+  // Build de produção em Docker (Linux); no Windows o standalone exige symlinks.
+  output: process.env.NEXT_STANDALONE === '1' ? 'standalone' : undefined,
   poweredByHeader: false,
   async headers() {
     return [

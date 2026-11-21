@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { expiracaoSuporte } from '@gc/core';
+import { banco, MODO_DEMO } from '@/lib/db';
 import { demo } from '@/lib/demo-store';
 import { exigirPerfil } from '@/lib/sessao';
-import { MODO_DEMO, supabaseServidor } from '@/lib/supabase/server';
 
 export async function decidirPedido(form: FormData) {
-  await exigirPerfil('sindico');
+  const s = await exigirPerfil('sindico');
   const id = String(form.get('id'));
   const tipo = String(form.get('tipo'));
   const aprovar = form.get('decisao') === 'aprovar';
@@ -17,42 +17,38 @@ export async function decidirPedido(form: FormData) {
     const p = demo().aprovacoes.find((a) => a.id === id);
     if (p) p.status = aprovar ? (tipo === 'reserva' ? 'confirmada' : 'aprovada') : 'recusada';
   } else {
-    const sb = await supabaseServidor();
-    const { error } = await sb.rpc('decidir_pedido', { p_tipo: tipo, p_id: id, p_aprovar: aprovar, p_motivo: motivo });
-    if (error) throw new Error('Não foi possível registrar a decisão');
+    await banco().comoUsuario(s.userId, (q) => q('select public.decidir_pedido($1, $2, $3, $4)', [tipo, id, aprovar, motivo]));
   }
   revalidatePath('/sindico');
 }
 
 export async function decidirSuporte(form: FormData) {
-  await exigirPerfil('sindico');
+  const s = await exigirPerfil('sindico');
   const id = String(form.get('id'));
   const aprovar = form.get('decisao') === 'aprovar';
   if (MODO_DEMO) {
-    const s = demo().suporte.find((x) => x.id === id);
-    if (s && s.status === 'solicitado') {
-      s.status = aprovar ? 'aprovado' : 'negado';
-      s.expiraEm = aprovar ? expiracaoSuporte(new Date(), s.duracaoHoras) : null;
+    const x = demo().suporte.find((y) => y.id === id);
+    if (x && x.status === 'solicitado') {
+      x.status = aprovar ? 'aprovado' : 'negado';
+      x.expiraEm = aprovar ? expiracaoSuporte(new Date(), x.duracaoHoras) : null;
     }
   } else {
-    const sb = await supabaseServidor();
-    await sb.rpc('decidir_suporte', { p_id: id, p_aprovar: aprovar });
+    await banco().comoUsuario(s.userId, (q) => q('select public.decidir_suporte($1, $2)', [id, aprovar]));
   }
   revalidatePath('/sindico');
 }
 
 export async function revogarSuporte(form: FormData) {
-  await exigirPerfil('sindico');
+  const s = await exigirPerfil('sindico');
   const id = String(form.get('id'));
   if (MODO_DEMO) {
-    const s = demo().suporte.find((x) => x.id === id);
-    if (s) {
-      s.status = 'revogado';
-      s.expiraEm = new Date();
+    const x = demo().suporte.find((y) => y.id === id);
+    if (x) {
+      x.status = 'revogado';
+      x.expiraEm = new Date();
     }
   } else {
-    const sb = await supabaseServidor();
-    await sb.rpc('revogar_suporte', { p_id: id });
+    await banco().comoUsuario(s.userId, (q) => q('select public.revogar_suporte($1)', [id]));
   }
   revalidatePath('/sindico');
 }

@@ -2,7 +2,9 @@
   "name": "gestacondominio",
   "private": true,
   "packageManager": "pnpm@12.6.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -10,10 +12,12 @@
     "test": "turbo run test",
     "test:rls": "pnpm --filter @gc/db test",
     "test:e2e": "pnpm --filter @gc/web test:e2e",
-    "db:start": "supabase start --workdir packages/db",
-    "db:reset": "supabase db reset --workdir packages/db",
     "db:test:up": "docker compose -f packages/db/test/docker-compose.yml up -d --wait",
-    "db:test:down": "docker compose -f packages/db/test/docker-compose.yml down -v"
+    "db:test:down": "docker compose -f packages/db/test/docker-compose.yml down -v",
+    "db:migrate": "pnpm --filter @gc/db migrate",
+    "db:seed": "pnpm --filter @gc/db seed",
+    "db:app-user": "pnpm --filter @gc/db app-user",
+    "test:e2e:real": "pnpm --filter @gc/web test:e2e:real"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
