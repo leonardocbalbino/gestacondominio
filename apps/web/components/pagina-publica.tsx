@@ -3,7 +3,7 @@ import { contato } from '@/lib/contato';
 /** Moldura das páginas públicas (política, suporte, exclusão de conta): legível sem login, em qualquer tela. */
 export function PaginaPublica({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-8 text-[15px] leading-relaxed [&_h2]:mb-0 [&_h2]:mt-4 [&_h2]:font-heading [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-0 [&_ul]:my-0 [&_ul]:pl-5">
+    <main className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-8 text-[15px] leading-relaxed [&_h2]:mb-0 [&_h2]:mt-4 [&_h2]:font-heading [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-0 [&_ul]:my-0 [&_ul]:list-disc [&_ul]:pl-5">
       <a href="/" className="flex items-center gap-2.5 no-underline">
         <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary-dark font-heading text-xs font-bold text-white">GC</span>
         <span className="font-heading font-semibold text-ink">GestaCondomínio</span>
