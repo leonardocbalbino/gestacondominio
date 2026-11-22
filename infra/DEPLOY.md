@@ -29,6 +29,17 @@ docker compose logs -f migrar web            # acompanhe a primeira subida
 
 O Caddy emite o certificado HTTPS sozinho. Guarde uma cópia do `APP_CRYPTO_KEY` fora da VPS (gerenciador de senhas): sem ela, CPFs, segredos 2FA e arquivos cifrados ficam ilegíveis.
 
+### Sem domínio (teste por IP:porta)
+
+Só para testes com dados fictícios: sem HTTPS, senhas trafegam sem criptografia. O Caddy não sobe e o painel fica em `http://IP:PORTA`.
+
+```bash
+# no .env: DOMINIO=<ip da VPS> e PORTA=8900
+docker compose -f docker-compose.yml -f docker-compose.ip.yml up -d --build
+```
+
+Nesse modo o link facial usa a câmera nativa do celular, porque o navegador só libera a câmera ao vivo em HTTPS. Quando tiver domínio, troque `DOMINIO` e suba só com `docker-compose.yml`.
+
 ## 3. Primeiro acesso (dono do sistema)
 
 Não existe cadastro aberto. Crie o dono uma única vez:
