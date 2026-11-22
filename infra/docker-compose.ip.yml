@@ -9,6 +9,8 @@ services:
     environment:
       APP_URL: http://${DOMINIO}:${PORTA:-8900}
       COOKIE_SEGURO: "0"
+      # Teste: 2FA opcional por padrão. Para exigir de novo: DESATIVAR_2FA=0 no .env.
+      DESATIVAR_2FA: ${DESATIVAR_2FA:-1}
 
   worker:
     environment:

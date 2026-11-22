@@ -17,3 +17,6 @@ packages/db/supabase/.temp/
 .armazenamento/
 *.tsbuildinfo
 next-env.d.ts
+
+# Credencial da Google Play (EAS submit)
+play-service-account.json

@@ -38,6 +38,8 @@ Só para testes com dados fictícios: sem HTTPS, senhas trafegam sem criptografi
 docker compose -f docker-compose.yml -f docker-compose.ip.yml up -d --build
 ```
 
+Nesse modo o 2FA fica opcional (`DESATIVAR_2FA=1` por padrão no `docker-compose.ip.yml`); para exigi-lo, ponha `DESATIVAR_2FA=0` no `.env`. Em produção (só `docker-compose.yml`) ele é sempre exigido, salvo se você definir a variável.
+
 Nesse modo o link facial usa a câmera nativa do celular, porque o navegador só libera a câmera ao vivo em HTTPS. Quando tiver domínio, troque `DOMINIO` e suba só com `docker-compose.yml`.
 
 ## 3. Primeiro acesso (dono do sistema)

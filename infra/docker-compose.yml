@@ -46,6 +46,8 @@ services:
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
       API_ORIGENS: ${API_ORIGENS:-}
+      # Só em teste: 1 deixa o 2FA opcional. Em produção mantenha 0.
+      DESATIVAR_2FA: ${DESATIVAR_2FA:-0}
       TZ: America/Sao_Paulo
     volumes:
       - arquivos:/dados

@@ -20,6 +20,17 @@ export interface Sessao {
 
 export const COOKIE_DEMO = 'gc_demo_perfil';
 
+/**
+ * DESATIVAR_2FA=1 deixa o 2FA opcional (só para ambiente de TESTE com dados fictícios).
+ * O cadastro do TOTP continua disponível em /login/2fa; apenas deixa de ser obrigatório.
+ */
+export const MFA_DESATIVADO = process.env.DESATIVAR_2FA === '1';
+if (MFA_DESATIVADO) console.warn('[gc] DESATIVAR_2FA=1: 2FA não é exigido. Use só em ambiente de teste.');
+
+export function exige2fa(p: Perfil): boolean {
+  return !MFA_DESATIVADO && EXIGE_2FA.includes(p);
+}
+
 const DEMO: Record<string, Sessao> = {
   dono: { userId: 'demo-dono', nome: 'Dono da Plataforma', perfil: 'dono', condominioId: null, condominioNome: null, demo: true, aal: 2, totpAtivo: true },
   sindico: { userId: 'demo-sindico', nome: 'Helena Prado', perfil: 'sindico', condominioId: IDS.condoAcacias, condominioNome: 'Res. Jardim das Acácias', demo: true, aal: 2, totpAtivo: true },
@@ -60,7 +71,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
 export async function exigirPerfil(...perfis: Perfil[]): Promise<Sessao> {
   const s = await sessaoAtual();
   if (!s) redirect('/login');
-  if (EXIGE_2FA.includes(s.perfil) && s.aal < 2) redirect(s.totpAtivo ? '/login/2fa' : '/login/2fa?cadastrar=1');
+  if (exige2fa(s.perfil) && s.aal < 2) redirect(s.totpAtivo ? '/login/2fa' : '/login/2fa?cadastrar=1');
   if (!perfis.includes(s.perfil)) redirect(destinoDoPerfil(s.perfil));
   return s;
 }

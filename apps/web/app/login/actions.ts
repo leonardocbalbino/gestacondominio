@@ -2,11 +2,10 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { EXIGE_2FA } from '@gc/core';
 import { autenticar, encerrarSessao, gravarCookieSessao, sessaoDoCookie } from '@/lib/auth';
 import { banco, MODO_DEMO } from '@/lib/db';
 import { limitar } from '@/lib/limite';
-import { COOKIE_DEMO, destinoDoPerfil, perfilDoUsuario } from '@/lib/sessao';
+import { COOKIE_DEMO, destinoDoPerfil, exige2fa, perfilDoUsuario } from '@/lib/sessao';
 
 export async function entrar(_: unknown, form: FormData): Promise<{ erro?: string }> {
   if (MODO_DEMO) {
@@ -23,8 +22,8 @@ export async function entrar(_: unknown, form: FormData): Promise<{ erro?: strin
 
   const p = await perfilDoUsuario(r.userId);
   if (!p) return { erro: 'Seu usuário não está vinculado a nenhum condomínio' };
-  // 2FA obrigatório para dono, síndico e portaria.
-  if (EXIGE_2FA.includes(p.perfil)) redirect(r.totpAtivo ? '/login/2fa' : '/login/2fa?cadastrar=1');
+  // 2FA obrigatório para dono, síndico e portaria (opcional com DESATIVAR_2FA=1, só em teste).
+  if (exige2fa(p.perfil)) redirect(r.totpAtivo ? '/login/2fa' : '/login/2fa?cadastrar=1');
   redirect(destinoDoPerfil(p.perfil));
 }
 

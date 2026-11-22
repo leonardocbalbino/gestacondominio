@@ -8,6 +8,7 @@ import { Field, Input } from '@/components/ui/field';
 import { autenticar, gravarCookieSessao, ipDaRequisicao } from '@/lib/auth';
 import { banco, MODO_DEMO } from '@/lib/db';
 import { limitar } from '@/lib/limite';
+import { MFA_DESATIVADO } from '@/lib/sessao';
 
 export const metadata: Metadata = { title: 'Aceitar convite', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ async function aceitar(form: FormData) {
       })
       .catch(() => {});
   }
-  redirect('/login/2fa?cadastrar=1');
+  redirect(MFA_DESATIVADO ? '/' : '/login/2fa?cadastrar=1');
 }
 
 export default async function Page({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ erro?: string }> }) {

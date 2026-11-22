@@ -3,36 +3,54 @@
     "name": "GestaCondomínio",
     "slug": "gestacondominio",
     "scheme": "gestacondominio",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F4F5F2",
     "ios": {
       "bundleIdentifier": "app.gestacondominio",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "A câmera é usada só para cadastrar seu rosto no controle de acesso do condomínio, com seu consentimento."
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "app.gestacondominio",
-      "permissions": [
-        "CAMERA"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#0F3B37"
+      },
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-secure-store",
       "expo-status-bar",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F3B37"
+        }
+      ],
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "color": "#0F766E"
         }
       ]
