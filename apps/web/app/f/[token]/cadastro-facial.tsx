@@ -15,7 +15,17 @@ interface Props {
   validade: string;
 }
 
-type Etapa = 'inicio' | 'camera' | 'enviando' | 'pronto' | 'erro';
+type Etapa = 'inicio' | 'camera' | 'arquivo' | 'enviando' | 'pronto' | 'erro';
+
+/** Reduz para no máx. 720×960 e converte em JPEG (o servidor aceita só JPEG ≤ 2 MB). */
+function paraJpeg(fonte: CanvasImageSource, largura: number, altura: number): Promise<Blob | null> {
+  const escala = Math.min(1, 720 / largura, 960 / altura);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(largura * escala);
+  canvas.height = Math.round(altura * escala);
+  canvas.getContext('2d')?.drawImage(fonte, 0, 0, canvas.width, canvas.height);
+  return new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.85));
+}
 
 export function CadastroFacial(p: Props) {
   const [aceite, setAceite] = useState(false);
@@ -24,11 +34,17 @@ export function CadastroFacial(p: Props) {
   const [pendente, iniciar] = useTransition();
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
+  const arquivo = useRef<HTMLInputElement>(null);
 
   // Libera a câmera ao sair da página.
   useEffect(() => () => stream.current?.getTracks().forEach((t) => t.stop()), []);
 
   async function abrirCamera() {
+    // Sem HTTPS (ou em navegadores antigos) não há câmera ao vivo: usa a câmera nativa do celular.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setEtapa('arquivo');
+      return;
+    }
     try {
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 720, height: 960 }, audio: false });
       if (video.current) {
@@ -37,8 +53,43 @@ export function CadastroFacial(p: Props) {
       }
       setEtapa('camera');
     } catch {
-      setErro('Não foi possível abrir a câmera. Verifique a permissão do navegador.');
+      setErro('Não foi possível abrir a câmera ao vivo. Use o botão abaixo para tirar a foto com a câmera do celular.');
+      setEtapa('arquivo');
     }
+  }
+
+  async function enviar(blob: Blob | null) {
+    if (!blob) return setEtapa('erro');
+    setEtapa('enviando');
+    const fd = new FormData();
+    fd.set('token', p.token);
+    fd.set('foto', blob, 'face.jpg');
+    const r = await fetch('/api/facial', { method: 'POST', body: fd });
+    if (r.ok) setEtapa('pronto');
+    else {
+      setErro((await r.json().catch(() => null))?.erro ?? 'Falha ao enviar a foto');
+      setEtapa('erro');
+    }
+  }
+
+  // Foto tirada pela câmera nativa: decodifica, reduz e envia (nada fica salvo pelo site).
+  function fotoDoArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setErro(null);
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = async () => {
+      const blob = await paraJpeg(img, img.naturalWidth, img.naturalHeight);
+      URL.revokeObjectURL(url);
+      await enviar(blob);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setErro('Não foi possível ler a foto. Tente novamente.');
+    };
+    img.src = url;
   }
 
   function tirarFoto() {
@@ -58,28 +109,11 @@ export function CadastroFacial(p: Props) {
     // 2º toque: captura o quadro e envia direto ao servidor (nada fica salvo no aparelho).
     const v = video.current;
     if (!v) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth || 720;
-    canvas.height = v.videoHeight || 960;
-    canvas.getContext('2d')?.drawImage(v, 0, 0, canvas.width, canvas.height);
     setEtapa('enviando');
-    canvas.toBlob(
-      async (blob) => {
-        stream.current?.getTracks().forEach((t) => t.stop());
-        if (!blob) return setEtapa('erro');
-        const fd = new FormData();
-        fd.set('token', p.token);
-        fd.set('foto', blob, 'face.jpg');
-        const r = await fetch('/api/facial', { method: 'POST', body: fd });
-        if (r.ok) setEtapa('pronto');
-        else {
-          setErro((await r.json().catch(() => null))?.erro ?? 'Falha ao enviar a foto');
-          setEtapa('erro');
-        }
-      },
-      'image/jpeg',
-      0.85,
-    );
+    void paraJpeg(v, v.videoWidth || 720, v.videoHeight || 960).then((blob) => {
+      stream.current?.getTracks().forEach((t) => t.stop());
+      return enviar(blob);
+    });
   }
 
   if (etapa === 'pronto') {
@@ -163,10 +197,18 @@ export function CadastroFacial(p: Props) {
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line bg-surface px-5 pb-6 pt-3">
-        <Button size="lg" onClick={tirarFoto} disabled={!aceite || pendente || etapa === 'enviando'}>
-          <IconeCamera />
-          {etapa === 'camera' ? 'Capturar foto' : 'Tirar foto'}
-        </Button>
+        <input ref={arquivo} type="file" accept="image/*" capture="user" className="hidden" onChange={fotoDoArquivo} />
+        {etapa === 'arquivo' ? (
+          <Button size="lg" onClick={() => arquivo.current?.click()}>
+            <IconeCamera />
+            Abrir câmera do celular
+          </Button>
+        ) : (
+          <Button size="lg" onClick={tirarFoto} disabled={!aceite || pendente || etapa === 'enviando'}>
+            <IconeCamera />
+            {etapa === 'camera' ? 'Capturar foto' : 'Tirar foto'}
+          </Button>
+        )}
         <div className="text-center text-xs text-muted">{p.validade}</div>
       </div>
     </main>

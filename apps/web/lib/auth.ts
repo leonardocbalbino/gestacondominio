@@ -45,7 +45,8 @@ export async function sessaoPorToken(token: string | undefined | null): Promise<
 export async function gravarCookieSessao(token: string) {
   (await cookies()).set(COOKIE_SESSAO, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // COOKIE_SEGURO=0 só para ambiente de teste acessado por IP, sem HTTPS.
+    secure: process.env.COOKIE_SEGURO ? process.env.COOKIE_SEGURO !== '0' : process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 12,
