@@ -48,6 +48,9 @@ services:
       API_ORIGENS: ${API_ORIGENS:-}
       # Só em teste: 1 deixa o 2FA opcional. Em produção mantenha 0.
       DESATIVAR_2FA: ${DESATIVAR_2FA:-0}
+      # Contato público da política de privacidade, suporte e exclusão de conta (exigido pelas lojas).
+      SUPORTE_EMAIL: ${SUPORTE_EMAIL:-}
+      RESPONSAVEL_LEGAL: ${RESPONSAVEL_LEGAL:-}
       TZ: America/Sao_Paulo
     volumes:
       - arquivos:/dados

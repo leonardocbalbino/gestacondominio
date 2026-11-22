@@ -18,7 +18,7 @@ export default function Page() {
       </div>
       <FormLogin demo={MODO_DEMO} />
       <p className="text-center text-xs text-muted">
-        Seus dados são tratados conforme a LGPD. <a href="/privacidade">Privacidade</a>
+        Seus dados são tratados conforme a LGPD. <a href="/politica-de-privacidade">Privacidade</a> · <a href="/suporte">Suporte</a>
       </p>
     </main>
   );

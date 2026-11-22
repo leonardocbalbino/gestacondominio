@@ -1,10 +1,11 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Share, View } from 'react-native';
+import { Alert, Linking, ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PRAZO_RESPOSTA_TITULAR_DIAS } from '@gc/core';
 import { Badge, Botao, Card, T, Titulo } from '@/components/ui';
-import { MODO_DEMO, sair } from '@/lib/api';
+import { MODO_DEMO, sair, URL_WEB } from '@/lib/api';
 import { exportarMeusDados, pedidoTitular, revogarFacial } from '@/lib/dados';
 import { tratarErro } from '@/lib/useDados';
 
@@ -64,6 +65,14 @@ export default function TelaPerfil() {
           <Botao variante="contorno" titulo="Corrigir meus dados" onPress={() => pedir('correcao')} />
           <Botao variante="contorno" titulo="Pedir exclusão da conta" onPress={() => pedir('exclusao')} />
         </Card>
+        {URL_WEB ? (
+          <Card className="gap-2.5 p-4">
+            <Titulo className="text-[16px]">Ajuda</Titulo>
+            <Botao variante="contorno" titulo="Política de privacidade" onPress={() => Linking.openURL(`${URL_WEB}/politica-de-privacidade`)} />
+            <Botao variante="contorno" titulo="Suporte" onPress={() => Linking.openURL(`${URL_WEB}/suporte`)} />
+          </Card>
+        ) : null}
+        <T className="text-center text-[12px] text-muted">Versão {Constants.expoConfig?.version ?? '-'}</T>
         {!MODO_DEMO ? (
           <Botao
             variante="contorno"
