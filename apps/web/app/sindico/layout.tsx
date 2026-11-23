@@ -28,7 +28,7 @@ export default async function LayoutSindico({ children }: { children: React.Reac
         { href: '/sindico/alugueis', rotulo: 'Aluguéis', icone: 'alugueis' },
         { href: '/sindico/contratos', rotulo: 'Contratos', icone: 'contratos', contador: alertasContratos },
         { href: '/sindico/moradores', rotulo: 'Moradores', icone: 'moradores' },
-        { href: '/sindico/ocorrencias', rotulo: 'Ocorrências', icone: 'ocorrencias', contador: ocorrencias.filter((o) => o.status === 'aberta').length },
+        { href: '/sindico/ocorrencias', rotulo: 'Ocorrências', icone: 'ocorrencias', contador: ocorrencias.filter((o) => o.status !== 'resolvida').length },
         { href: '/sindico/comunicados', rotulo: 'Comunicados', icone: 'comunicados' },
         { href: '/sindico/suporte', rotulo: 'Acesso do suporte', icone: 'suporte', contador: suporteAberto },
         { href: '/privacidade', rotulo: 'Privacidade', icone: 'privacidade' },
