@@ -24,8 +24,8 @@ export function Moldura({ sessao, nav, children }: { sessao: Sessao; nav: ItemNa
           </form>
         </div>
       </header>
-      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[220px_1fr] lg:gap-8 lg:py-7">
-        <aside className="lg:sticky lg:top-[76px] lg:self-start">
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5 px-4 py-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:py-7">
+        <aside className="min-w-0 lg:sticky lg:top-[76px] lg:self-start">
           <NavLateral itens={nav} />
         </aside>
         <main className="flex min-w-0 flex-col gap-5">{children}</main>

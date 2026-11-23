@@ -52,7 +52,7 @@ function criar() {
       encerradoEm: null, temDocumento: true, observacoes: null,
     },
     {
-      id: 'c1000000-0000-4000-8000-000000000003', fornecedor: 'Porto Seguro (fictício)', cnpj: null, contato: null, categoria: 'seguro',
+      id: 'c1000000-0000-4000-8000-000000000003', fornecedor: 'Seguradora Exemplo', cnpj: null, contato: null, categoria: 'seguro',
       objeto: 'Seguro predial obrigatório', valor: 14400, periodicidade: 'anual', inicio: d('2026-04-01T00:00:00-03:00'),
       fim: d('2027-03-31T00:00:00-03:00'), renovacaoAutomatica: false, avisoDias: 60, status: 'ativo', encerradoEm: null, temDocumento: false,
       observacoes: null,

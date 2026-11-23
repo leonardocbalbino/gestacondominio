@@ -56,7 +56,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
         />
       </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <Abas
           ativo={filtro}
           itens={Object.entries(FILTROS).map(([k, v]) => ({ valor: k, rotulo: v.rotulo, href: url({ filtro: k }), contador: doTipo.filter(v.f).length }))}

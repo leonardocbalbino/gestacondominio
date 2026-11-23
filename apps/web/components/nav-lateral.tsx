@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 export type NomeIcone =
@@ -45,6 +46,11 @@ function ativo(path: string, item: ItemNav) {
 
 export function NavLateral({ itens }: { itens: ItemNav[] }) {
   const path = usePathname();
+  const movel = useRef<HTMLElement>(null);
+  // No celular, traz a aba da página atual para a área visível.
+  useEffect(() => {
+    movel.current?.querySelector('[aria-current=page]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [path]);
   return (
     <>
       {/* Computador: coluna lateral */}
@@ -71,7 +77,7 @@ export function NavLateral({ itens }: { itens: ItemNav[] }) {
         })}
       </nav>
       {/* Celular/tablet: abas roláveis */}
-      <nav aria-label="Seções" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 lg:hidden">
+      <nav ref={movel} aria-label="Seções" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 lg:hidden">
         {itens.map((i) => {
           const on = ativo(path, i);
           return (
