@@ -19,7 +19,7 @@ export default async function Page() {
   const d = await dadosPortaria(sessao.userId, sessao.condominioId!);
 
   return (
-    <Painel sessao={sessao} titulo="Portaria">
+    <Painel sessao={sessao} titulo="Portaria" nav={[{ href: '/portaria', rotulo: 'Portaria', icone: 'portaria', exato: true }, { href: '/privacidade', rotulo: 'Privacidade', icone: 'privacidade' }]}>
       <Card className="p-4">
         <CardTitle className="mb-3">Registrar acesso</CardTitle>
         <form action={registrarAcesso} className="flex flex-wrap gap-2">

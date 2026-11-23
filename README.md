@@ -80,7 +80,7 @@ Veja [infra/DEPLOY.md](infra/DEPLOY.md). Resumo: `cd infra && cp .env.example .e
 |---|---|---|
 | Base | Monorepo, tokens, auth própria + TOTP, RLS + 70 testes, migrador, Docker/Compose | — |
 | Dono | Métricas agregadas, criar condomínio, convite por e-mail (SMTP) | Cobrança (gateway de pagamento) |
-| Síndico | Aprovações, break-glass, aceite do DPA | Telas de gestão de unidades/moradores, publicar transparência pelo painel |
+| Síndico | Visão geral, aprovações (com motivo e histórico), aluguéis e temporadas (ficha, hóspedes, contrato, encerrar), contratos com fornecedores (vigência, alertas, PDF cifrado), moradores e convites por unidade, ocorrências, comunicados, break-glass, aceite do DPA | Transparência e assembleias pelo painel |
 | Portaria | Pessoas autorizadas (CPF mascarado), vagas cedidas, registro de acesso, aviso de encomenda | — |
 | Morador (app) | 5 telas do design + reservas, assembleias/voto, encomendas, ocorrências, LGPD, login, push | Builds nas lojas (contas Apple/Google, `eas init`) |
 | Hardware | Adaptadores Control iD/Hikvision/Intelbras (testados com HTTP simulado) | Validar em equipamento real; agente local na rede do condomínio |

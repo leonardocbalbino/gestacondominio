@@ -41,14 +41,51 @@ test('dono cria condomínio e recebe link de convite', async ({ page }) => {
 test('síndica aprova locação e libera acesso de suporte', async ({ page }) => {
   await entrarComo(page, 'sindico');
   await expect(page).toHaveURL(/\/sindico$/);
-  await expect(page.getByText('Locatária · Marina Souza')).toBeVisible();
-  await page.getByRole('button', { name: 'Aprovar Locatária · Marina Souza' }).click();
-  await expect(page.getByText('Locatária · Marina Souza')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
+  await page.getByRole('link', { name: /Aprovações/ }).first().click();
+  await expect(page).toHaveURL(/\/sindico\/aprovacoes/);
+  const aprovar = page.getByRole('button', { name: 'Aprovar Locatária · Marina Souza' });
+  await aprovar.click();
+  await expect(aprovar).toHaveCount(0);
+  await expect(page.getByText('Decididos nos últimos 60 dias')).toBeVisible();
 
+  await page.goto('/sindico/suporte');
   await page.getByRole('button', { name: 'Liberar 1h' }).click();
   await expect(page.getByText(/ativo até/)).toBeVisible();
   await page.getByRole('button', { name: 'Encerrar agora' }).click();
   await expect(page.getByText('Encerrado')).toBeVisible();
+});
+
+test('síndica: aluguéis, contratos, moradores e comunicados em páginas próprias', async ({ page }) => {
+  await entrarComo(page, 'sindico');
+  await page.goto('/sindico/alugueis?filtro=todas');
+  await expect(page.getByRole('heading', { name: 'Aluguéis e temporadas' })).toBeVisible();
+  await page.getByRole('link', { name: /Bruno Melo/ }).click();
+  await expect(page.getByText('Pessoas cadastradas (1)')).toBeVisible();
+
+  await page.goto('/sindico/contratos/novo');
+  await page.getByLabel('Fornecedor', { exact: true }).fill('Bombas Hidráulicas Teste');
+  await page.getByLabel('Objeto do contrato').fill('Manutenção das bombas de recalque');
+  await page.getByLabel('Valor (R$)').fill('650,00');
+  await page.getByLabel('Início').fill('2026-11-01');
+  await page.getByRole('button', { name: 'Cadastrar contrato' }).click();
+  await expect(page.getByRole('status')).toHaveText('Contrato salvo.');
+  await expect(page.getByRole('heading', { name: 'Bombas Hidráulicas Teste' })).toBeVisible();
+  await page.getByRole('button', { name: 'Encerrar contrato' }).click();
+  await expect(page.getByRole('status')).toHaveText('Contrato encerrado.');
+
+  await page.goto('/sindico/moradores');
+  await page.getByRole('combobox', { name: /^Unidade/ }).selectOption({ label: '502-B' });
+  await page.getByLabel('Nome do morador').fill('Paula Teste');
+  await page.getByLabel('E-mail do morador').fill('paula@example.com');
+  await page.getByRole('button', { name: 'Enviar convite' }).click();
+  await expect(page.getByRole('status')).toContainText('Convite criado');
+
+  await page.goto('/sindico/comunicados');
+  await page.getByLabel('Título').fill('Dedetização');
+  await page.getByLabel('Texto').fill('Dia 30/11, áreas comuns.');
+  await page.getByRole('button', { name: 'Publicar' }).click();
+  await expect(page.getByText('Dedetização')).toBeVisible();
 });
 
 test('portaria vê CPF mascarado e registra acesso', async ({ page }) => {

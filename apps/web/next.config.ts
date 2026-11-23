@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   // Build de produção em Docker (Linux); no Windows o standalone exige symlinks.
   output: process.env.NEXT_STANDALONE === '1' ? 'standalone' : undefined,
   poweredByHeader: false,
+  // Upload de contratos (PDF até 10 MB) por server action.
+  experimental: { serverActions: { bodySizeLimit: '11mb' } },
   async headers() {
     return [
       {

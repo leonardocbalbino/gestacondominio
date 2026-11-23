@@ -31,7 +31,7 @@ export default async function Page() {
   const ativos = metricas.filter((m) => m.status === 'ativo').length;
 
   return (
-    <Painel sessao={sessao} titulo="Visão da plataforma">
+    <Painel sessao={sessao} titulo="Visão da plataforma" nav={[{ href: '/dono', rotulo: 'Plataforma', icone: 'plataforma', exato: true }]}>
       <p className="m-0 flex items-start gap-2 rounded-lg border border-primary-soft-border bg-primary-tint p-3 text-[13px]">
         <span aria-hidden>🔒</span>
         <span>

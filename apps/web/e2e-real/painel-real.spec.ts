@@ -68,12 +68,13 @@ test('dono: 2FA, métricas agregadas com "< 3", sem nomes', async ({ page }) => 
 
 test('síndica: 2FA e aprovação da locação gravada no banco', async ({ page }) => {
   await entrar(page, 'helena.prado@example.com', /\/sindico$/);
-  const item = page.getByText('Locatário(a) temporada · Marina Souza');
-  await expect(item).toBeVisible();
-  await page.getByRole('button', { name: 'Aprovar Locatário(a) temporada · Marina Souza' }).click();
-  await expect(item).toHaveCount(0);
+  await page.goto('/sindico/aprovacoes');
+  const aprovar = page.getByRole('button', { name: 'Aprovar Locatário(a) temporada · Marina Souza' });
+  await expect(aprovar).toBeVisible();
+  await aprovar.click();
+  await expect(aprovar).toHaveCount(0);
   await page.reload();
-  await expect(page.getByText('Locatário(a) temporada · Marina Souza')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Aprovar Locatário(a) temporada · Marina Souza' })).toHaveCount(0);
 });
 
 test('portaria: 2FA, CPF mascarado e hóspede aprovado aparece', async ({ page }) => {

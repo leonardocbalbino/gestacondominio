@@ -210,3 +210,13 @@ insert into public.aceites_dpa (condominio_id, versao, aceito_por, ip) values
 insert into public.notificacoes (condominio_id, user_id, titulo, link) values
   ('11111111-1111-4111-8111-111111111111', '00000000-0000-4000-8000-0000000000a4', 'Locação da Marina enviada ao síndico', '/inicio'),
   ('11111111-1111-4111-8111-111111111111', '00000000-0000-4000-8000-0000000000a4', 'Reserva do salão confirmada', '/inicio');
+
+-- Contratos com fornecedores (fictícios) e ocorrências de exemplo
+insert into public.contratos (condominio_id, fornecedor, cnpj_fornecedor, contato_fornecedor, categoria, objeto, valor, periodicidade, inicio, fim, renovacao_automatica, aviso_dias, observacoes) values
+  ('11111111-1111-4111-8111-111111111111', 'Elevadores Sul Ltda', '12.345.678/0001-90', '(41) 3333-1000', 'elevadores', 'Manutenção preventiva e corretiva dos 4 elevadores', 1890, 'mensal', current_date - 340, current_date + 18, true, 30, 'Reajuste anual pelo IPCA.'),
+  ('11111111-1111-4111-8111-111111111111', 'Limpa Mais Serviços', '23.456.789/0001-01', 'contato@limpamais.example', 'limpeza', 'Limpeza das áreas comuns (2 colaboradores, seg a sáb)', 9800, 'mensal', '2026-01-01', '2026-12-31', false, 45, null),
+  ('11111111-1111-4111-8111-111111111111', 'Seguradora Exemplo', null, null, 'seguro', 'Seguro predial obrigatório', 14400, 'anual', '2026-04-01', '2027-03-31', false, 60, null),
+  ('11111111-1111-4111-8111-111111111111', 'Verde Vivo Jardinagem', '34.567.890/0001-12', null, 'jardinagem', 'Manutenção quinzenal dos jardins', 1200, 'mensal', current_date - 540, current_date - 5, false, 30, null);
+insert into public.ocorrencias (condominio_id, unidade_id, titulo, descricao, status) values
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000304', 'Lâmpada queimada na garagem', 'Subsolo 1, perto da vaga 18.', 'aberta'),
+  ('11111111-1111-4111-8111-111111111111', 'b0000000-0000-4000-8000-000000001102', 'Barulho após as 22h', 'Som alto no 8º andar do bloco B.', 'em_andamento');
